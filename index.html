@@ -106,6 +106,18 @@
           </div>
         </div>
 
+        <!-- 2-Day Mini Widget Card (Today & Tomorrow) -->
+        <div id="twoDayWidget" class="grid grid-cols-2 rounded-2xl overflow-hidden border border-white/15 shadow-inner max-w-xs">
+          <div id="widgetTodayBox" class="bg-gradient-to-b from-blue-800 to-slate-950 px-4 py-2.5 text-center flex flex-col items-center justify-center gap-1">
+            <div class="text-xs font-bold text-blue-100 leading-tight"><span id="widgetTodayDay">24</span> <span id="widgetTodayDow">화</span></div>
+            <span id="widgetTodayBadge" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold bg-slate-700 text-white">야</span>
+          </div>
+          <div id="widgetTomorrowBox" class="bg-slate-950 px-4 py-2.5 text-center flex flex-col items-center justify-center gap-1 border-l border-white/10">
+            <div class="text-xs font-bold text-slate-300 leading-tight"><span id="widgetTomorrowDay">25</span> <span id="widgetTomorrowDow">수</span></div>
+            <span id="widgetTomorrowBadge" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold bg-slate-700 text-white">야</span>
+          </div>
+        </div>
+
         <!-- Team Quick Switcher -->
         <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10">
           <div class="flex items-center gap-1.5">
@@ -1023,6 +1035,36 @@
         const badge = $('todayShiftBadge');
         badge.className = `inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-bold shadow-sm ${meta.heroClass}`;
         badge.textContent = `${meta.label} (${getShiftTimeLabel(todayShift)})`;
+
+        // 2-Day Mini Widget Update
+        const dows = ['일', '월', '화', '수', '목', '금', '토'];
+        const tmr = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        const tmrShift = getShiftForTeamOnDate(state.myTeam, tmr);
+
+        const widgetCircleStyle = (sh) => {
+          if (sh === '주') return 'bg-amber-400 text-slate-950';
+          if (sh === '야') return 'bg-indigo-500 text-white';
+          if (sh === '휴가') return 'bg-yellow-300 text-rose-600';
+          if (sh === '특주') return 'bg-rose-500 text-white';
+          if (sh === '특야') return 'bg-purple-500 text-white';
+          return 'bg-emerald-500 text-slate-950';
+        };
+        const widgetShortText = (sh) => {
+          if (sh === '특주') return '특주';
+          if (sh === '특야') return '특야';
+          if (sh === '휴가') return '휴가';
+          return sh;
+        };
+
+        $('widgetTodayDay').textContent = now.getDate();
+        $('widgetTodayDow').textContent = dows[now.getDay()];
+        $('widgetTodayBadge').textContent = widgetShortText(todayShift);
+        $('widgetTodayBadge').className = `w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold shadow ${widgetCircleStyle(todayShift)}`;
+
+        $('widgetTomorrowDay').textContent = tmr.getDate();
+        $('widgetTomorrowDow').textContent = dows[tmr.getDay()];
+        $('widgetTomorrowBadge').textContent = widgetShortText(tmrShift);
+        $('widgetTomorrowBadge').className = `w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold shadow ${widgetCircleStyle(tmrShift)}`;
 
         // All 4 teams today
         const summaryEl = $('todayAllTeamsSummary');

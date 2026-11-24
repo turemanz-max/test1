@@ -357,8 +357,17 @@
               <option value="digital">클래식 전자 알람</option>
               <option value="melody">모닝 멜로디</option>
               <option value="urgent">강력한 비프음</option>
+              <option value="custom_audio">내 음악 파일 (MP3 등)</option>
             </select>
           </div>
+        </div>
+        <div id="customAudioBox" class="hidden p-3 rounded-xl bg-indigo-50/70 border border-indigo-200 space-y-2">
+          <input id="alarmAudioFileInput" type="file" accept="audio/*" class="hidden" />
+          <div class="flex items-center justify-between gap-2">
+            <span id="customAudioFileName" class="text-xs font-medium text-slate-700 truncate">선택된 음악 파일 없음</span>
+            <button id="chooseAudioFileBtn" type="button" class="shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">음악 파일 선택</button>
+          </div>
+          <p class="text-[11px] text-slate-500">MP3, M4A, WAV 등 내 기기의 음악 파일을 선택하면 기기 안에 저장되어 알람으로 울립니다.</p>
         </div>
         <div>
           <span class="block text-xs font-semibold text-slate-700 mb-1.5">울릴 근무 조건 (복수 선택 가능)</span>
@@ -619,8 +628,120 @@
       let audioCtx = null;
       let audioEnabled = false;
       let ringIntervalId = null;
+      let activeAudioEl = null;
+      let activeAudioUrl = null;
+      let previewStopTimer = null;
       let lastTriggeredKey = '';
       let snoozeTimeoutId = null;
+
+      // Custom Audio File Storage (IndexedDB + memory fallback)
+      const AUDIO_DB_NAME = 'shift4x2_audio_db';
+      const AUDIO_STORE_NAME = 'tracks';
+      const customAudioCache = {};
+      let pendingAudioBlob = null;
+      let pendingAudioName = '';
+
+      function openAudioDB() {
+        return new Promise((resolve, reject) => {
+          try {
+            if (!('indexedDB' in window)) return reject(new Error('No IndexedDB'));
+            const req = indexedDB.open(AUDIO_DB_NAME, 1);
+            req.onupgradeneeded = (e) => {
+              const db = e.target.result;
+              if (!db.objectStoreNames.contains(AUDIO_STORE_NAME)) {
+                db.createObjectStore(AUDIO_STORE_NAME);
+              }
+            };
+            req.onsuccess = (e) => resolve(e.target.result);
+            req.onerror = () => reject(req.error);
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }
+
+      async function saveAudioTrack(trackKey, blob) {
+        customAudioCache[trackKey] = blob;
+        try {
+          const db = await openAudioDB();
+          await new Promise((resolve, reject) => {
+            const tx = db.transaction(AUDIO_STORE_NAME, 'readwrite');
+            tx.objectStore(AUDIO_STORE_NAME).put(blob, trackKey);
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+          });
+        } catch (e) {
+          // fallback stays in memory
+        }
+      }
+
+      async function loadAudioTrack(trackKey) {
+        if (!trackKey) return null;
+        if (customAudioCache[trackKey]) return customAudioCache[trackKey];
+        try {
+          const db = await openAudioDB();
+          const blob = await new Promise((resolve, reject) => {
+            const tx = db.transaction(AUDIO_STORE_NAME, 'readonly');
+            const req = tx.objectStore(AUDIO_STORE_NAME).get(trackKey);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(req.error);
+          });
+          if (blob) customAudioCache[trackKey] = blob;
+          return blob;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      async function deleteAudioTrack(trackKey) {
+        if (!trackKey) return;
+        delete customAudioCache[trackKey];
+        try {
+          const db = await openAudioDB();
+          await new Promise((resolve) => {
+            const tx = db.transaction(AUDIO_STORE_NAME, 'readwrite');
+            tx.objectStore(AUDIO_STORE_NAME).delete(trackKey);
+            tx.oncomplete = resolve;
+            tx.onerror = resolve;
+          });
+        } catch (e) {}
+      }
+
+      function stopCustomAudio() {
+        clearTimeout(previewStopTimer);
+        if (activeAudioEl) {
+          try {
+            activeAudioEl.pause();
+            activeAudioEl.currentTime = 0;
+          } catch (e) {}
+          activeAudioEl = null;
+        }
+        if (activeAudioUrl) {
+          try { URL.revokeObjectURL(activeAudioUrl); } catch (e) {}
+          activeAudioUrl = null;
+        }
+      }
+
+      async function playCustomAudioBlob(blob, loopPlay = false) {
+        stopCustomAudio();
+        if (!blob) return false;
+        try {
+          activeAudioUrl = URL.createObjectURL(blob);
+          const audio = new Audio(activeAudioUrl);
+          audio.loop = loopPlay;
+          activeAudioEl = audio;
+          await audio.play();
+          if (!loopPlay) {
+            previewStopTimer = setTimeout(() => {
+              stopCustomAudio();
+            }, 5000);
+          }
+          return true;
+        } catch (e) {
+          stopCustomAudio();
+          return false;
+        }
+      }
 
       // DOM helpers
       const $ = (id) => document.getElementById(id);
@@ -799,7 +920,7 @@
         }
       }
 
-      function triggerAlarmRinging(alarm, shiftChar) {
+      async function triggerAlarmRinging(alarm, shiftChar) {
         ensureAudioContext();
         stopRingingOnly();
 
@@ -809,10 +930,20 @@
         $('ringingModal').classList.remove('hidden');
         $('ringingModal').classList.add('flex');
 
-        playTonePattern(alarm.tone);
-        ringIntervalId = setInterval(() => {
-          playTonePattern(alarm.tone);
-        }, 2000);
+        let playedCustom = false;
+        if (alarm.tone === 'custom_audio' && alarm.audioKey) {
+          const blob = await loadAudioTrack(alarm.audioKey);
+          if (blob) {
+            playedCustom = await playCustomAudioBlob(blob, true);
+          }
+        }
+        if (!playedCustom) {
+          const fallbackTone = alarm.tone === 'custom_audio' ? 'melody' : alarm.tone;
+          playTonePattern(fallbackTone);
+          ringIntervalId = setInterval(() => {
+            playTonePattern(fallbackTone);
+          }, 2000);
+        }
 
         // Browser notification if permitted
         try {
@@ -831,6 +962,7 @@
           clearInterval(ringIntervalId);
           ringIntervalId = null;
         }
+        stopCustomAudio();
       }
 
       function dismissAlarm() {
@@ -1047,7 +1179,7 @@
           return;
         }
 
-        const toneNames = { chime: '차임벨', digital: '전자음', melody: '멜로디', urgent: '비프음' };
+        const toneNames = { chime: '차임벨', digital: '전자음', melody: '멜로디', urgent: '비프음', custom_audio: '내 음악' };
 
         container.innerHTML = state.alarms.map((alarm) => {
           const shiftBadges = (alarm.shifts || []).map((s) => {
@@ -1064,7 +1196,7 @@
                 </div>
                 <div class="flex flex-wrap items-center gap-1.5 mt-1">
                   ${shiftBadges}
-                  <span class="text-[11px] text-slate-400">• ${toneNames[alarm.tone] || '전자음'}</span>
+                  <span class="text-[11px] text-slate-400">• ${alarm.tone === 'custom_audio' && alarm.audioName ? `🎵 ${alarm.audioName}` : (toneNames[alarm.tone] || '전자음')}</span>
                 </div>
               </div>
               <div class="flex items-center gap-1.5 shrink-0">
@@ -1248,6 +1380,8 @@
             renderHeroToday(new Date());
           }
         } else if (action === 'delete-alarm') {
+          const delTarget = state.alarms.find((a) => a.id === id);
+          if (delTarget && delTarget.audioKey) deleteAudioTrack(delTarget.audioKey);
           state.alarms = state.alarms.filter((a) => a.id !== id);
           saveState();
           renderAlarmList();
@@ -1261,6 +1395,14 @@
           $('alarmNameInput').value = target.name;
           $('alarmTimeInput').value = target.time;
           $('alarmToneSelect').value = target.tone || 'chime';
+          pendingAudioBlob = null;
+          pendingAudioName = target.audioName || '';
+          if (target.tone === 'custom_audio') {
+            $('customAudioBox').classList.remove('hidden');
+            $('customAudioFileName').textContent = target.audioName ? `선택됨: ${target.audioName}` : '선택된 음악 파일 없음';
+          } else {
+            $('customAudioBox').classList.add('hidden');
+          }
           document.querySelectorAll('.alarm-shift-cb').forEach((cb) => {
             cb.checked = target.shifts.includes(cb.value);
           });
@@ -1271,9 +1413,32 @@
 
       // Add/Edit Alarm Modal
       function closeAlarmModal() {
+        stopCustomAudio();
         $('alarmFormModal').classList.add('hidden');
         $('alarmFormModal').classList.remove('flex');
       }
+
+      $('alarmToneSelect').addEventListener('change', (e) => {
+        if (e.target.value === 'custom_audio') {
+          $('customAudioBox').classList.remove('hidden');
+        } else {
+          $('customAudioBox').classList.add('hidden');
+          stopCustomAudio();
+        }
+      });
+
+      $('chooseAudioFileBtn').addEventListener('click', () => {
+        $('alarmAudioFileInput').click();
+      });
+
+      $('alarmAudioFileInput').addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        pendingAudioBlob = file;
+        pendingAudioName = file.name;
+        $('customAudioFileName').textContent = `선택됨: ${file.name}`;
+        showToast(`"${file.name}" 음악이 선택되었습니다.`);
+      });
 
       $('openAddAlarmBtn').addEventListener('click', () => {
         $('alarmFormTitle').textContent = '새 알람 추가';
@@ -1281,6 +1446,11 @@
         $('alarmNameInput').value = '';
         $('alarmTimeInput').value = '06:30';
         $('alarmToneSelect').value = 'chime';
+        pendingAudioBlob = null;
+        pendingAudioName = '';
+        $('customAudioBox').classList.add('hidden');
+        $('customAudioFileName').textContent = '선택된 음악 파일 없음';
+        $('alarmAudioFileInput').value = '';
         document.querySelectorAll('.alarm-shift-cb').forEach((cb) => {
           cb.checked = cb.value === '주';
         });
@@ -1291,11 +1461,29 @@
       $('closeAlarmFormBtn').addEventListener('click', closeAlarmModal);
       $('cancelAlarmFormBtn').addEventListener('click', closeAlarmModal);
 
-      $('previewToneBtn').addEventListener('click', () => {
-        playTonePattern($('alarmToneSelect').value);
+      $('previewToneBtn').addEventListener('click', async () => {
+        const tone = $('alarmToneSelect').value;
+        if (tone === 'custom_audio') {
+          if (pendingAudioBlob) {
+            await playCustomAudioBlob(pendingAudioBlob, false);
+            return;
+          }
+          const editId = $('editAlarmId').value;
+          const existing = editId ? state.alarms.find((a) => a.id === editId) : null;
+          if (existing && existing.audioKey) {
+            const blob = await loadAudioTrack(existing.audioKey);
+            if (blob) {
+              await playCustomAudioBlob(blob, false);
+              return;
+            }
+          }
+          showToast('먼저 음악 파일을 선택해 주세요.');
+          return;
+        }
+        playTonePattern(tone);
       });
 
-      $('saveAlarmBtn').addEventListener('click', () => {
+      $('saveAlarmBtn').addEventListener('click', async () => {
         const name = $('alarmNameInput').value.trim() || '근무 알람';
         const time = $('alarmTimeInput').value || '06:30';
         const tone = $('alarmToneSelect').value;
@@ -1309,20 +1497,40 @@
         }
 
         const editId = $('editAlarmId').value;
-        if (editId) {
-          const existing = state.alarms.find((a) => a.id === editId);
-          if (existing) {
-            existing.name = name;
-            existing.time = time;
-            existing.tone = tone;
-            existing.shifts = shifts;
-          }
+        const existing = editId ? state.alarms.find((a) => a.id === editId) : null;
+
+        if (tone === 'custom_audio' && !pendingAudioBlob && !(existing && existing.audioKey)) {
+          showToast('내 음악 파일을 선택해 주세요.');
+          return;
+        }
+
+        let audioKey = existing ? existing.audioKey : '';
+        let audioName = existing ? existing.audioName : '';
+        if (tone === 'custom_audio' && pendingAudioBlob) {
+          audioKey = audioKey || ('track_' + Date.now());
+          audioName = pendingAudioName || '내 음악';
+          await saveAudioTrack(audioKey, pendingAudioBlob);
+        } else if (tone !== 'custom_audio' && audioKey) {
+          await deleteAudioTrack(audioKey);
+          audioKey = '';
+          audioName = '';
+        }
+
+        if (existing) {
+          existing.name = name;
+          existing.time = time;
+          existing.tone = tone;
+          existing.shifts = shifts;
+          existing.audioKey = audioKey;
+          existing.audioName = audioName;
         } else {
           state.alarms.push({
             id: 'a_' + Date.now(),
             name,
             time,
             tone,
+            audioKey,
+            audioName,
             shifts,
             enabled: true
           });

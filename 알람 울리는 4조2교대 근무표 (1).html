@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="4조2교대" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%234f46e5'/%3E%3Ccircle cx='32' cy='34' r='16' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M32 25v9l6 4' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M16 15l5-4M48 15l-5-4' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" id="appleTouchIcon" href="" />
+  <link rel="manifest" id="pwaManifestLink" href="" />
+  <title>알람 울리는 4조2교대 근무표</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    .alarm-ringing {
+      animation: pulse-ring 1.4s infinite;
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+
+  <!-- Top App Bar -->
+  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+          <i data-lucide="alarm-clock" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 leading-tight">4조2교대 근무표 &amp; 알람</h1>
+          <p class="text-xs text-slate-500">근무 패턴 연동 자동 알람 시계</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="audioEnableBtn" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100">
+          <i data-lucide="volume-2" class="w-4 h-4"></i>
+          <span id="audioEnableText">소리 켜기</span>
+        </button>
+        <button id="testAlarmBtn" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm">
+          <i data-lucide="bell-ring" class="w-4 h-4"></i>
+          <span>알람 테스트</span>
+        </button>
+        <button id="openInstallShareBtn" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
+          <i data-lucide="share-2" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">앱 설치·공유</span>
+        </button>
+        <button id="openSettingsBtn" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
+          <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">근무 설정</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-5 space-y-5">
+
+    <!-- Live Clock & Next Alarm Hero -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <!-- Current Status Card -->
+      <div class="lg:col-span-7 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-5 shadow-md flex flex-col justify-between gap-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2 text-xs font-medium text-indigo-200">
+              <span id="liveDateText">2026년 11월 24일 (화)</span>
+              <span>•</span>
+              <span id="activePatternLabel" class="px-2 py-0.5 rounded-full bg-white/10 text-white">주주휴휴야야휴휴</span>
+            </div>
+            <div id="liveClockText" class="text-4xl sm:text-5xl font-extrabold tracking-tight tabular-nums mt-1.5">
+              08:13:06
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-300 block mb-1">오늘 내 근무 (<span id="myTeamBadgeLabel">B조</span>)</span>
+            <span id="todayShiftBadge" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-bold bg-amber-400 text-slate-950 shadow-sm">
+              야간 (18:30~06:30)
+            </span>
+          </div>
+        </div>
+
+        <!-- Team Quick Switcher -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/10">
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs text-slate-300 mr-1">내 근무조:</span>
+            <div id="teamSelectorGroup" class="inline-flex rounded-lg bg-white/10 p-0.5">
+              <button type="button" data-team="0" class="team-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors">A조</button>
+              <button type="button" data-team="1" class="team-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors">B조</button>
+              <button type="button" data-team="2" class="team-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors">C조</button>
+              <button type="button" data-team="3" class="team-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors">D조</button>
+            </div>
+          </div>
+          <div id="todayAllTeamsSummary" class="flex flex-wrap items-center gap-1.5 text-xs">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Next Alarm Countdown Card -->
+      <div class="lg:col-span-5 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between gap-4">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-indigo-600">다음 예정 알람</span>
+            <h2 id="nextAlarmTitle" class="text-lg font-bold text-slate-900 mt-0.5">계산 중...</h2>
+            <p id="nextAlarmDetail" class="text-xs text-slate-500 mt-0.5">근무 패턴과 알람을 확인하고 있습니다.</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <i data-lucide="bell" class="w-5 h-5"></i>
+          </div>
+        </div>
+
+        <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-100 flex items-center justify-between">
+          <div>
+            <span class="text-xs text-slate-500 block">남은 시간</span>
+            <span id="nextAlarmCountdown" class="text-2xl font-extrabold text-indigo-600 tabular-nums">--:--:--</span>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-500 block">알람 시각</span>
+            <span id="nextAlarmTime" class="text-lg font-bold text-slate-800 tabular-nums">--:--</span>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-500">
+          <span id="audioStatusHint" class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            상단 '소리 켜기'를 누르면 정각에 소리가 울립니다.
+          </span>
+          <button id="requestNotifBtn" type="button" class="text-indigo-600 font-semibold hover:underline shrink-0">브라우저 알림 허용</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Grid: Calendar + Alarm Panel -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+      <!-- Left: Monthly Shift Calendar (7 cols) -->
+      <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <!-- Calendar Header -->
+        <div class="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <button id="prevMonthBtn" type="button" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors" aria-label="이전 달">
+              <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
+            <h2 id="calendarMonthTitle" class="text-base sm:text-lg font-bold text-slate-900 min-w-[120px] text-center">2026년 11월</h2>
+            <button id="nextMonthBtn" type="button" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors" aria-label="다음 달">
+              <i data-lucide="chevron-right" class="w-5 h-5"></i>
+            </button>
+            <button id="goTodayBtn" type="button" class="ml-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">오늘</button>
+          </div>
+
+          <!-- Legend -->
+          <div class="flex flex-wrap items-center gap-2 text-xs font-medium">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800">주간</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800">야간</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-100 text-sky-800">비번</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">휴무</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-100 text-rose-800">특근</span>
+          </div>
+        </div>
+
+        <!-- Weekday Headers -->
+        <div class="grid grid-cols-7 text-center text-xs font-semibold text-slate-500 bg-slate-50/80 border-b border-slate-100 py-2">
+          <div class="text-rose-500">일</div>
+          <div>월</div>
+          <div>화</div>
+          <div>수</div>
+          <div>목</div>
+          <div>금</div>
+          <div class="text-blue-500">토</div>
+        </div>
+
+        <!-- Calendar Days Grid -->
+        <div id="calendarGrid" class="grid grid-cols-7 divide-x divide-y divide-slate-100">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Monthly Summary Footer -->
+        <div id="monthlySummaryBar" class="p-3.5 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Right: Selected Day Detail & Alarm Rules (5 cols) -->
+      <div class="lg:col-span-5 space-y-5">
+
+        <!-- Selected Date Inspector -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-xs font-semibold text-indigo-600">선택한 날짜 상세</span>
+              <h3 id="selectedDateTitle" class="text-base font-bold text-slate-900">2026년 11월 24일 (화)</h3>
+            </div>
+            <span id="selectedDateMyShift" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800">주간</span>
+          </div>
+
+          <!-- All 4 teams on selected date -->
+          <div id="selectedDateTeamsGrid" class="grid grid-cols-4 gap-2">
+            <!-- Populated by JS -->
+          </div>
+
+          <!-- Quick Override / Memo -->
+          <div class="pt-2 border-t border-slate-100 space-y-2.5">
+            <div>
+              <span class="block text-xs font-semibold text-slate-600 mb-1.5">빠른 근무 변경 (원클릭 특근·대근·휴무)</span>
+              <div id="quickOverrideGroup" class="grid grid-cols-4 gap-1.5">
+                <button type="button" data-override="" class="override-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition-colors">기본</button>
+                <button type="button" data-override="특주" class="override-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition-colors">특근(주)</button>
+                <button type="button" data-override="특야" class="override-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition-colors">특근(야)</button>
+                <button type="button" data-override="휴" class="override-btn px-2 py-1.5 rounded-lg text-xs font-semibold border transition-colors">휴무</button>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <input id="dayMemoInput" type="text" placeholder="이 날의 메모 (예: 반차, B조 대근, 병원)" class="flex-1 text-xs rounded-lg border border-slate-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              <button id="saveDayDetailBtn" type="button" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-900 transition-colors">메모 저장</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alarms Manager -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 class="text-base font-bold text-slate-900 flex items-center gap-1.5">
+                <i data-lucide="alarm-clock-check" class="w-4 h-4 text-indigo-600"></i>
+                근무 연동 알람 목록
+              </h3>
+              <p class="text-xs text-slate-500">해당 근무일(주/야/비/휴)에만 자동으로 울립니다.</p>
+            </div>
+            <button id="openAddAlarmBtn" type="button" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              알람 추가
+            </button>
+          </div>
+
+          <div id="alarmListContainer" class="divide-y divide-slate-100 max-h-[380px] overflow-y-auto">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- Settings Modal (Shift Pattern & Times) -->
+  <div id="settingsModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-xl border border-slate-200 overflow-hidden">
+      <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900">4조2교대 근무 패턴 설정</h3>
+        <button id="closeSettingsBtn" type="button" class="p-1 rounded-lg hover:bg-slate-100 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-4 space-y-4 max-h-[75vh] overflow-y-auto text-sm">
+        <div>
+          <label for="patternPresetSelect" class="block text-xs font-semibold text-slate-700 mb-1">교대 패턴 선택</label>
+          <select id="patternPresetSelect" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="주주휴휴야야휴휴">주주휴휴야야휴휴 (8일 주기 · 주2·휴2·야2·휴2)</option>
+            <option value="주주야야비비휴휴">주주야야비비휴휴 (8일 주기 · 표준 4조2교대)</option>
+            <option value="주야비휴">주야비휴 (4일 주기 · 맞교대형)</option>
+            <option value="주주야야비휴">주주야야비휴 (6일 주기)</option>
+            <option value="custom">사용자 지정 패턴</option>
+          </select>
+        </div>
+
+        <div id="customPatternBox" class="hidden space-y-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <label for="customPatternInput" class="block text-xs font-semibold text-slate-700">패턴 직접 입력 ('주', '야', '비', '휴' 조합)</label>
+          <input id="customPatternInput" type="text" placeholder="예: 주주야야비비휴휴" class="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm" />
+          <p class="text-xs text-slate-500">예: 주주야야비비휴휴 (조별 시작 간격은 주기÷4 자동 계산)</p>
+        </div>
+
+        <div>
+          <label for="baseDateInput" class="block text-xs font-semibold text-slate-700 mb-1">기준일 (A조가 패턴 첫날인 날짜)</label>
+          <input id="baseDateInput" type="date" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          <p class="text-xs text-slate-500 mt-1">A조의 첫 번째 '주간' 근무 시작일을 입력하면 전체 달력이 맞춰집니다.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="dayShiftStartInput" class="block text-xs font-semibold text-slate-700 mb-1">주간 시작</label>
+            <input id="dayShiftStartInput" type="time" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label for="dayShiftEndInput" class="block text-xs font-semibold text-slate-700 mb-1">주간 종료</label>
+            <input id="dayShiftEndInput" type="time" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label for="nightShiftStartInput" class="block text-xs font-semibold text-slate-700 mb-1">야간 시작</label>
+            <input id="nightShiftStartInput" type="time" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label for="nightShiftEndInput" class="block text-xs font-semibold text-slate-700 mb-1">야간 종료 (익일)</label>
+            <input id="nightShiftEndInput" type="time" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+        </div>
+      </div>
+      <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+        <button id="resetDefaultBtn" type="button" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors">기본값 초기화</button>
+        <button id="saveSettingsBtn" type="button" class="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">설정 적용</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add / Edit Alarm Modal -->
+  <div id="alarmFormModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-xl border border-slate-200 overflow-hidden">
+      <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 id="alarmFormTitle" class="text-base font-bold text-slate-900">새 알람 추가</h3>
+        <button id="closeAlarmFormBtn" type="button" class="p-1 rounded-lg hover:bg-slate-100 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-4 space-y-3.5 text-sm">
+        <input type="hidden" id="editAlarmId" value="" />
+        <div>
+          <label for="alarmNameInput" class="block text-xs font-semibold text-slate-700 mb-1">알람 이름</label>
+          <input id="alarmNameInput" type="text" placeholder="예: 주간 출근 기상 알람" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="alarmTimeInput" class="block text-xs font-semibold text-slate-700 mb-1">울릴 시각</label>
+            <input id="alarmTimeInput" type="time" value="06:30" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+          </div>
+          <div>
+            <label for="alarmToneSelect" class="block text-xs font-semibold text-slate-700 mb-1">알람 소리</label>
+            <select id="alarmToneSelect" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="chime">부드러운 차임벨</option>
+              <option value="digital">클래식 전자 알람</option>
+              <option value="melody">모닝 멜로디</option>
+              <option value="urgent">강력한 비프음</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <span class="block text-xs font-semibold text-slate-700 mb-1.5">울릴 근무 조건 (복수 선택 가능)</span>
+          <div class="grid grid-cols-4 gap-2">
+            <label class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-amber-50 text-xs font-semibold">
+              <input type="checkbox" class="alarm-shift-cb accent-amber-500" value="주" checked />
+              <span>주간</span>
+            </label>
+            <label class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-indigo-50 text-xs font-semibold">
+              <input type="checkbox" class="alarm-shift-cb accent-indigo-600" value="야" />
+              <span>야간</span>
+            </label>
+            <label class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-sky-50 text-xs font-semibold">
+              <input type="checkbox" class="alarm-shift-cb accent-sky-600" value="비" />
+              <span>비번</span>
+            </label>
+            <label class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-emerald-50 text-xs font-semibold">
+              <input type="checkbox" class="alarm-shift-cb accent-emerald-600" value="휴" />
+              <span>휴무</span>
+            </label>
+          </div>
+        </div>
+        <div class="flex items-center justify-between pt-1">
+          <button id="previewToneBtn" type="button" class="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:underline">
+            <i data-lucide="play" class="w-3.5 h-3.5"></i>
+            소리 미리듣기
+          </button>
+        </div>
+      </div>
+      <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+        <button id="cancelAlarmFormBtn" type="button" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200">취소</button>
+        <button id="saveAlarmBtn" type="button" class="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ringing Alarm Overlay Modal -->
+  <div id="ringingModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border border-slate-200 space-y-5">
+      <div class="mx-auto w-20 h-20 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center alarm-ringing">
+        <i data-lucide="bell-ring" class="w-10 h-10"></i>
+      </div>
+      <div>
+        <span id="ringingShiftBadge" class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 mb-2">주간 근무 알람</span>
+        <h3 id="ringingTitle" class="text-xl font-extrabold text-slate-900">주간 출근 기상</h3>
+        <p id="ringingTime" class="text-3xl font-black text-indigo-600 tabular-nums mt-1">06:30</p>
+      </div>
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button id="snoozeAlarmBtn" type="button" class="py-3 px-4 rounded-2xl text-sm font-bold bg-slate-100 text-slate-800 hover:bg-slate-200 transition-colors">
+          5분 뒤 다시 알림
+        </button>
+        <button id="dismissAlarmBtn" type="button" class="py-3 px-4 rounded-2xl text-sm font-bold bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-md">
+          알람 끄기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Install & Share Modal -->
+  <div id="installShareModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-xl border border-slate-200 overflow-hidden">
+      <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i data-lucide="smartphone" class="w-4 h-4 text-indigo-600"></i>
+          앱 설치 및 동료 공유
+        </h3>
+        <button id="closeInstallShareBtn" type="button" class="p-1 rounded-lg hover:bg-slate-100 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-4 space-y-4 text-xs text-slate-600">
+        <div class="p-3 rounded-xl bg-indigo-50 border border-indigo-100 space-y-2">
+          <p class="font-bold text-indigo-900">동료에게 링크 공유하기</p>
+          <p class="text-indigo-800 leading-relaxed">웹에 올린 뒤 아래 버튼으로 주소를 복사해 카톡으로 보내세요. 각자 본인 조(A·B·C·D조)를 눌러 쓸 수 있습니다.</p>
+          <div class="flex gap-2 pt-1">
+            <button id="copyShareUrlBtn" type="button" class="flex-1 py-2 px-3 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors">현재 주소 복사</button>
+            <button id="nativeShareBtn" type="button" class="py-2 px-3 rounded-lg bg-white text-indigo-700 border border-indigo-200 font-semibold hover:bg-indigo-50 transition-colors">공유하기</button>
+          </div>
+        </div>
+        <div class="space-y-2.5">
+          <p class="font-bold text-slate-900">스마트폰 바탕화면에 앱으로 추가</p>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <p class="font-semibold text-slate-800">아이폰 (Safari)</p>
+            <p>하단 <strong>공유(□↑)</strong> 버튼 → <strong>홈 화면에 추가</strong></p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <p class="font-semibold text-slate-800">안드로이드 (Chrome)</p>
+            <p>우측 상단 <strong>⋮(메뉴)</strong> → <strong>홈 화면에 추가</strong> 또는 <strong>앱 설치</strong></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toastBox" class="fixed bottom-4 right-4 z-50 pointer-events-none opacity-0 transition-opacity duration-300">
+    <div id="toastContent" class="bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2"></div>
+  </div>
+
+  <script>
+    (function () {
+      const STORAGE_KEY = 'shift4x2_alarm_app_v4';
+      const TEAM_NAMES = ['A조', 'B조', 'C조', 'D조'];
+
+      const SHIFT_META = {
+        '주': {
+          label: '주간',
+          badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
+          heroClass: 'bg-amber-400 text-slate-950',
+          cellBg: 'bg-amber-50/70',
+          dotClass: 'bg-amber-500'
+        },
+        '야': {
+          label: '야간',
+          badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+          heroClass: 'bg-indigo-500 text-white',
+          cellBg: 'bg-indigo-50/70',
+          dotClass: 'bg-indigo-600'
+        },
+        '비': {
+          label: '비번',
+          badgeClass: 'bg-sky-100 text-sky-800 border-sky-200',
+          heroClass: 'bg-sky-400 text-slate-950',
+          cellBg: 'bg-sky-50/50',
+          dotClass: 'bg-sky-500'
+        },
+        '휴': {
+          label: '휴무',
+          badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          heroClass: 'bg-emerald-400 text-slate-950',
+          cellBg: 'bg-emerald-50/50',
+          dotClass: 'bg-emerald-500'
+        },
+        '특주': {
+          label: '특근(주)',
+          shortLabel: '특(주)',
+          badgeClass: 'bg-rose-100 text-rose-800 border-rose-200',
+          heroClass: 'bg-rose-500 text-white',
+          cellBg: 'bg-rose-50/70',
+          dotClass: 'bg-rose-500'
+        },
+        '특야': {
+          label: '특근(야)',
+          shortLabel: '특(야)',
+          badgeClass: 'bg-purple-100 text-purple-800 border-purple-200',
+          heroClass: 'bg-purple-600 text-white',
+          cellBg: 'bg-purple-50/70',
+          dotClass: 'bg-purple-600'
+        }
+      };
+
+      const DEFAULT_STATE = {
+        myTeam: 1, // 0=A조, 1=B조(야간 시작), 2=C조, 3=D조(주간 시작)
+        pattern: '주주휴휴야야휴휴',
+        baseDate: '2026-11-24',
+        dayStart: '06:30',
+        dayEnd: '18:30',
+        nightStart: '18:30',
+        nightEnd: '06:30',
+        alarms: [
+          { id: 'a1', name: '주간 출근 기상', time: '05:20', shifts: ['주'], tone: 'melody', enabled: true },
+          { id: 'a2', name: '주간 출근 출발', time: '06:00', shifts: ['주'], tone: 'chime', enabled: true },
+          { id: 'a3', name: '야간 출근 기상/식사', time: '17:00', shifts: ['야'], tone: 'digital', enabled: true },
+          { id: 'a4', name: '야간 출근 출발', time: '18:00', shifts: ['야'], tone: 'urgent', enabled: true }
+        ],
+        overrides: {}, // { 'YYYY-MM-DD': '주' | '야' | '비' | '휴' }
+        memos: {}      // { 'YYYY-MM-DD': 'string' }
+      };
+
+      let state = loadState();
+      const nowInit = new Date();
+      let viewYear = nowInit.getFullYear();
+      let viewMonth = nowInit.getMonth();
+      let selectedDateStr = formatDateISO(nowInit);
+
+      // Audio state
+      let audioCtx = null;
+      let audioEnabled = false;
+      let ringIntervalId = null;
+      let lastTriggeredKey = '';
+      let snoozeTimeoutId = null;
+
+      // DOM helpers
+      const $ = (id) => document.getElementById(id);
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            return {
+              ...DEFAULT_STATE,
+              ...parsed,
+              alarms: Array.isArray(parsed.alarms) ? parsed.alarms : DEFAULT_STATE.alarms,
+              overrides: parsed.overrides || {},
+              memos: parsed.memos || {}
+            };
+          }
+        } catch (e) {
+          // ignore storage errors
+        }
+        return JSON.parse(JSON.stringify(DEFAULT_STATE));
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) {
+          // ignore storage errors
+        }
+      }
+
+      function formatDateISO(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+
+      function parseDateISO(str) {
+        const [y, m, d] = str.split('-').map(Number);
+        return new Date(y, m - 1, d);
+      }
+
+      function formatKoreanDate(d) {
+        const days = ['일', '월', '화', '수', '목', '금', '토'];
+        return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+      }
+
+      function diffDays(dateA, dateB) {
+        const utcA = Date.UTC(dateA.getFullYear(), dateA.getMonth(), dateA.getDate());
+        const utcB = Date.UTC(dateB.getFullYear(), dateB.getMonth(), dateB.getDate());
+        return Math.floor((utcA - utcB) / 86400000);
+      }
+
+      function getShiftForTeamOnDate(teamIdx, dateObj) {
+        const dateStr = formatDateISO(dateObj);
+        if (teamIdx === state.myTeam && state.overrides[dateStr]) {
+          return state.overrides[dateStr];
+        }
+        const patternArr = Array.from(state.pattern || '주주야야비비휴휴');
+        const cycleLen = patternArr.length || 8;
+        const base = parseDateISO(state.baseDate);
+        const daysPassed = diffDays(dateObj, base);
+
+        // Team offset from baseDate (2026-11-24). For 주주휴휴야야휴휴: D조=0(주간 시작), B조=4(야간 시작), A조=6, C조=2 (A→B→C→D 순환)
+        let offset = 0;
+        if (state.pattern === '주주휴휴야야휴휴') {
+          offset = [6, 4, 2, 0][teamIdx] ?? 0;
+        } else if (cycleLen === 6) {
+          offset = [0, 2, 4, 5][teamIdx] || 0;
+        } else {
+          offset = Math.round((cycleLen / 4) * teamIdx);
+        }
+
+        const idx = (((daysPassed + offset) % cycleLen) + cycleLen) % cycleLen;
+        return patternArr[idx] || '휴';
+      }
+
+      function getAlarmMatchShift(shiftCode) {
+        if (shiftCode === '특주') return '주';
+        if (shiftCode === '특야') return '야';
+        return shiftCode;
+      }
+
+      function getShiftTimeLabel(shiftChar) {
+        if (shiftChar === '주' || shiftChar === '특주') return `${state.dayStart}~${state.dayEnd}`;
+        if (shiftChar === '야' || shiftChar === '특야') return `${state.nightStart}~${state.nightEnd}`;
+        if (shiftChar === '비') return '야간 퇴근 후 휴식';
+        return '종일 휴무';
+      }
+
+      // Toast
+      let toastTimer = null;
+      function showToast(msg) {
+        const box = $('toastBox');
+        const content = $('toastContent');
+        content.textContent = msg;
+        box.classList.remove('opacity-0');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          box.classList.add('opacity-0');
+        }, 2800);
+      }
+
+      // Web Audio API Sound Synthesizer
+      function ensureAudioContext() {
+        if (!audioCtx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            audioCtx = new AudioCtx();
+          }
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+        if (audioCtx) {
+          audioEnabled = true;
+          updateAudioUI();
+        }
+        return audioCtx;
+      }
+
+      function updateAudioUI() {
+        const btn = $('audioEnableBtn');
+        const text = $('audioEnableText');
+        const hint = $('audioStatusHint');
+        if (audioEnabled) {
+          btn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100';
+          text.textContent = '소리 켜짐';
+          hint.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span>오디오가 활성화되어 정각에 알람이 울립니다.';
+        } else {
+          btn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100';
+          text.textContent = '소리 켜기';
+          hint.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400"></span>상단 \'소리 켜기\'를 누르면 정각에 소리가 울립니다.';
+        }
+      }
+
+      function playTonePattern(toneType) {
+        const ctx = ensureAudioContext();
+        if (!ctx) return;
+
+        const now = ctx.currentTime;
+        const playBeep = (freq, startOffset, duration, type = 'sine', gainVal = 0.25) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, now + startOffset);
+          gain.gain.setValueAtTime(0.001, now + startOffset);
+          gain.gain.exponentialRampToValueAtTime(gainVal, now + startOffset + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + startOffset + duration);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + startOffset);
+          osc.stop(now + startOffset + duration + 0.02);
+        };
+
+        if (toneType === 'chime') {
+          playBeep(523.25, 0, 0.35, 'sine', 0.25);
+          playBeep(659.25, 0.22, 0.35, 'sine', 0.25);
+          playBeep(783.99, 0.44, 0.55, 'sine', 0.28);
+        } else if (toneType === 'melody') {
+          playBeep(523.25, 0, 0.22, 'triangle', 0.25);
+          playBeep(587.33, 0.22, 0.22, 'triangle', 0.25);
+          playBeep(659.25, 0.44, 0.22, 'triangle', 0.25);
+          playBeep(783.99, 0.66, 0.45, 'triangle', 0.3);
+        } else if (toneType === 'urgent') {
+          for (let i = 0; i < 4; i++) {
+            playBeep(980, i * 0.22, 0.14, 'sawtooth', 0.22);
+          }
+        } else {
+          // digital
+          for (let i = 0; i < 4; i++) {
+            playBeep(880, i * 0.2, 0.12, 'square', 0.16);
+          }
+        }
+      }
+
+      function triggerAlarmRinging(alarm, shiftChar) {
+        ensureAudioContext();
+        stopRingingOnly();
+
+        $('ringingShiftBadge').textContent = `${SHIFT_META[shiftChar]?.label || '근무'} 근무 알람`;
+        $('ringingTitle').textContent = alarm.name;
+        $('ringingTime').textContent = alarm.time;
+        $('ringingModal').classList.remove('hidden');
+        $('ringingModal').classList.add('flex');
+
+        playTonePattern(alarm.tone);
+        ringIntervalId = setInterval(() => {
+          playTonePattern(alarm.tone);
+        }, 2000);
+
+        // Browser notification if permitted
+        try {
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(`⏰ ${alarm.name}`, {
+              body: `${SHIFT_META[shiftChar]?.label || ''} 근무 알람 (${alarm.time})`
+            });
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      function stopRingingOnly() {
+        if (ringIntervalId) {
+          clearInterval(ringIntervalId);
+          ringIntervalId = null;
+        }
+      }
+
+      function dismissAlarm() {
+        stopRingingOnly();
+        $('ringingModal').classList.add('hidden');
+        $('ringingModal').classList.remove('flex');
+      }
+
+      // Compute Next Upcoming Alarm
+      function findNextAlarm(now) {
+        const enabledAlarms = state.alarms.filter((a) => a.enabled && a.shifts && a.shifts.length > 0);
+        if (enabledAlarms.length === 0) return null;
+
+        let best = null;
+        for (let dayOffset = 0; dayOffset <= 14; dayOffset++) {
+          const checkDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset);
+          const shiftChar = getShiftForTeamOnDate(state.myTeam, checkDate);
+          const alarmShift = getAlarmMatchShift(shiftChar);
+
+          for (const alarm of enabledAlarms) {
+            if (!alarm.shifts.includes(alarmShift)) continue;
+            const [hh, mm] = alarm.time.split(':').map(Number);
+            const target = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate(), hh, mm, 0);
+            if (target.getTime() <= now.getTime()) continue;
+            if (!best || target.getTime() < best.target.getTime()) {
+              best = { alarm, target, shiftChar };
+            }
+          }
+          if (best) break;
+        }
+        return best;
+      }
+
+      // Render Functions
+      function renderTeamButtons() {
+        $('myTeamBadgeLabel').textContent = TEAM_NAMES[state.myTeam];
+        document.querySelectorAll('.team-btn').forEach((btn) => {
+          const t = Number(btn.dataset.team);
+          if (t === state.myTeam) {
+            btn.className = 'team-btn px-2.5 py-1 rounded-md text-xs font-bold bg-white text-slate-900 shadow-sm transition-colors';
+          } else {
+            btn.className = 'team-btn px-2.5 py-1 rounded-md text-xs font-semibold text-slate-200 hover:text-white transition-colors';
+          }
+        });
+      }
+
+      function renderHeroToday(now) {
+        $('liveDateText').textContent = formatKoreanDate(now);
+        $('liveClockText').textContent = [
+          String(now.getHours()).padStart(2, '0'),
+          String(now.getMinutes()).padStart(2, '0'),
+          String(now.getSeconds()).padStart(2, '0')
+        ].join(':');
+        $('activePatternLabel').textContent = state.pattern;
+
+        const todayShift = getShiftForTeamOnDate(state.myTeam, now);
+        const meta = SHIFT_META[todayShift] || SHIFT_META['휴'];
+        const badge = $('todayShiftBadge');
+        badge.className = `inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-bold shadow-sm ${meta.heroClass}`;
+        badge.textContent = `${meta.label} (${getShiftTimeLabel(todayShift)})`;
+
+        // All 4 teams today
+        const summaryEl = $('todayAllTeamsSummary');
+        summaryEl.innerHTML = [0, 1, 2, 3].map((t) => {
+          const s = getShiftForTeamOnDate(t, now);
+          const isMe = t === state.myTeam;
+          return `<span class="px-2 py-0.5 rounded-md ${isMe ? 'bg-white text-slate-900 font-bold' : 'bg-white/10 text-slate-200'}">${TEAM_NAMES[t]}:${s}</span>`;
+        }).join('');
+
+        // Next alarm
+        const next = findNextAlarm(now);
+        if (!next) {
+          $('nextAlarmTitle').textContent = '예정된 알람 없음';
+          $('nextAlarmDetail').textContent = '활성화된 알람을 추가하거나 켜주세요.';
+          $('nextAlarmCountdown').textContent = '--:--:--';
+          $('nextAlarmTime').textContent = '--:--';
+        } else {
+          const diffMs = next.target.getTime() - now.getTime();
+          const totalSec = Math.max(0, Math.floor(diffMs / 1000));
+          const hrs = Math.floor(totalSec / 3600);
+          const mins = Math.floor((totalSec % 3600) / 60);
+          const secs = totalSec % 60;
+          $('nextAlarmTitle').textContent = next.alarm.name;
+          $('nextAlarmDetail').textContent = `${formatKoreanDate(next.target)} · ${SHIFT_META[next.shiftChar].label} 근무`;
+          $('nextAlarmCountdown').textContent = `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+          $('nextAlarmTime').textContent = next.alarm.time;
+        }
+      }
+
+      function renderCalendar() {
+        $('calendarMonthTitle').textContent = `${viewYear}년 ${viewMonth + 1}월`;
+        const grid = $('calendarGrid');
+        const firstDay = new Date(viewYear, viewMonth, 1);
+        const startWeekday = firstDay.getDay();
+        const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+        const todayStr = formatDateISO(new Date());
+
+        const cells = [];
+        // Leading empty cells from previous month
+        const prevMonthLastDate = new Date(viewYear, viewMonth, 0).getDate();
+        for (let i = startWeekday - 1; i >= 0; i--) {
+          const dNum = prevMonthLastDate - i;
+          cells.push(`<div class="min-h-[76px] sm:min-h-[86px] p-1.5 bg-slate-50/50 text-slate-300 text-xs">${dNum}</div>`);
+        }
+
+        const counts = { '주': 0, '야': 0, '비': 0, '휴': 0, '특': 0 };
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dObj = new Date(viewYear, viewMonth, day);
+          const dStr = formatDateISO(dObj);
+          const shift = getShiftForTeamOnDate(state.myTeam, dObj);
+          if (shift === '특주' || shift === '특야') counts['특'] += 1;
+          else counts[shift] = (counts[shift] || 0) + 1;
+
+          const meta = SHIFT_META[shift];
+          const isToday = dStr === todayStr;
+          const isSelected = dStr === selectedDateStr;
+          const hasMemo = Boolean(state.memos[dStr]);
+          const hasOverride = Boolean(state.overrides[dStr]);
+          const weekday = dObj.getDay();
+          const dayNumColor = weekday === 0 ? 'text-rose-600' : weekday === 6 ? 'text-blue-600' : 'text-slate-700';
+
+          cells.push(`
+            <button type="button" data-date="${dStr}" class="cal-day-btn text-left min-h-[76px] sm:min-h-[86px] p-1.5 flex flex-col justify-between transition-colors hover:bg-slate-50 focus:outline-none ${isSelected ? 'ring-2 ring-inset ring-indigo-600 bg-indigo-50/30' : meta.cellBg}">
+              <div class="flex items-center justify-between w-full">
+                <span class="text-xs font-bold ${isToday ? 'w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center' : dayNumColor}">${day}</span>
+                <div class="flex items-center gap-0.5">
+                  ${hasOverride ? '<span class="w-1.5 h-1.5 rounded-full bg-rose-500" title="개인 근무 변경됨"></span>' : ''}
+                  ${hasMemo ? '<span class="w-1.5 h-1.5 rounded-full bg-slate-500" title="메모 있음"></span>' : ''}
+                </div>
+              </div>
+              <div class="space-y-1 w-full">
+                <span class="inline-block w-full text-center py-0.5 rounded-md text-[11px] font-bold border ${meta.badgeClass}">${meta.shortLabel || meta.label}</span>
+              </div>
+            </button>
+          `);
+        }
+
+        // Trailing cells
+        const totalRendered = startWeekday + daysInMonth;
+        const remainder = totalRendered % 7;
+        if (remainder !== 0) {
+          for (let i = 1; i <= 7 - remainder; i++) {
+            cells.push(`<div class="min-h-[76px] sm:min-h-[86px] p-1.5 bg-slate-50/50 text-slate-300 text-xs">${i}</div>`);
+          }
+        }
+
+        grid.innerHTML = cells.join('');
+
+        // Monthly Summary
+        const totalHours = (counts['주'] + counts['야'] + counts['특']) * 12;
+        $('monthlySummaryBar').innerHTML = `
+          <div class="flex flex-wrap items-center gap-3">
+            <span>주간 <strong class="text-amber-700">${counts['주']}일</strong></span>
+            <span>야간 <strong class="text-indigo-700">${counts['야']}일</strong></span>
+            <span>휴무 <strong class="text-emerald-700">${counts['휴']}일</strong></span>
+            ${counts['특'] > 0 ? `<span>특근 <strong class="text-rose-700">${counts['특']}일</strong></span>` : ''}
+          </div>
+          <div>예상 근무: <strong class="text-slate-900">${totalHours}시간</strong> (12시간 교대)</div>
+        `;
+      }
+
+      function renderSelectedDatePanel() {
+        const dObj = parseDateISO(selectedDateStr);
+        $('selectedDateTitle').textContent = formatKoreanDate(dObj);
+
+        const myShift = getShiftForTeamOnDate(state.myTeam, dObj);
+        const myMeta = SHIFT_META[myShift];
+        const badge = $('selectedDateMyShift');
+        badge.className = `px-2.5 py-1 rounded-lg text-xs font-bold border ${myMeta.badgeClass}`;
+        badge.textContent = `${myMeta.label} (${getShiftTimeLabel(myShift)})`;
+
+        const teamsGrid = $('selectedDateTeamsGrid');
+        teamsGrid.innerHTML = [0, 1, 2, 3].map((t) => {
+          const s = getShiftForTeamOnDate(t, dObj);
+          const m = SHIFT_META[s];
+          const isMe = t === state.myTeam;
+          return `
+            <div class="p-2 rounded-xl border text-center ${isMe ? 'border-indigo-400 bg-indigo-50/40' : 'border-slate-200 bg-slate-50/50'}">
+              <div class="text-[11px] font-semibold ${isMe ? 'text-indigo-700' : 'text-slate-500'}">${TEAM_NAMES[t]} ${isMe ? '(나)' : ''}</div>
+              <div class="mt-1 inline-block px-2 py-0.5 rounded-md text-xs font-bold border ${m.badgeClass}">${m.label}</div>
+            </div>
+          `;
+        }).join('');
+
+        const currentOverride = state.overrides[selectedDateStr] || '';
+        document.querySelectorAll('.override-btn').forEach((btn) => {
+          const val = btn.dataset.override;
+          if (val === currentOverride) {
+            btn.className = 'override-btn px-2 py-1.5 rounded-lg text-xs font-bold border border-indigo-600 bg-indigo-600 text-white shadow-sm transition-colors';
+          } else {
+            btn.className = 'override-btn px-2 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors';
+          }
+        });
+        $('dayMemoInput').value = state.memos[selectedDateStr] || '';
+      }
+
+      function renderAlarmList() {
+        const container = $('alarmListContainer');
+        if (state.alarms.length === 0) {
+          container.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">등록된 알람이 없습니다. 상단 \'알람 추가\'를 눌러보세요.</div>';
+          return;
+        }
+
+        const toneNames = { chime: '차임벨', digital: '전자음', melody: '멜로디', urgent: '비프음' };
+
+        container.innerHTML = state.alarms.map((alarm) => {
+          const shiftBadges = (alarm.shifts || []).map((s) => {
+            const m = SHIFT_META[s];
+            return `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold border ${m.badgeClass}">${m.label}</span>`;
+          }).join('');
+
+          return `
+            <div class="p-3.5 flex items-center justify-between gap-3 ${alarm.enabled ? 'bg-white' : 'bg-slate-50/70 opacity-70'}">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-lg font-extrabold tabular-nums text-slate-900">${alarm.time}</span>
+                  <span class="text-xs font-semibold text-slate-700 truncate">${alarm.name}</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                  ${shiftBadges}
+                  <span class="text-[11px] text-slate-400">• ${toneNames[alarm.tone] || '전자음'}</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" data-action="edit-alarm" data-id="${alarm.id}" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100" aria-label="알람 수정">
+                  <i data-lucide="pencil" class="w-4 h-4"></i>
+                </button>
+                <button type="button" data-action="delete-alarm" data-id="${alarm.id}" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50" aria-label="알람 삭제">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+                <button type="button" data-action="toggle-alarm" data-id="${alarm.id}" class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${alarm.enabled ? 'bg-indigo-600' : 'bg-slate-300'}" aria-label="알람 켜기/끄기">
+                  <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${alarm.enabled ? 'translate-x-6' : 'translate-x-1'}"></span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        if (window.lucide) {
+          lucide.createIcons();
+        }
+      }
+
+      function renderAll() {
+        const now = new Date();
+        renderTeamButtons();
+        renderHeroToday(now);
+        renderCalendar();
+        renderSelectedDatePanel();
+        renderAlarmList();
+        if (window.lucide) {
+          lucide.createIcons();
+        }
+      }
+
+      // Tick loop every second for live clock + alarm trigger check
+      function startClockLoop() {
+        setInterval(() => {
+          const now = new Date();
+          renderHeroToday(now);
+
+          const hh = String(now.getHours()).padStart(2, '0');
+          const mm = String(now.getMinutes()).padStart(2, '0');
+          const currentHM = `${hh}:${mm}`;
+          const currentDateStr = formatDateISO(now);
+          const triggerKey = `${currentDateStr}_${currentHM}`;
+
+          if (now.getSeconds() === 0 && lastTriggeredKey !== triggerKey) {
+            const todayShift = getShiftForTeamOnDate(state.myTeam, now);
+            const alarmShift = getAlarmMatchShift(todayShift);
+            const matched = state.alarms.find((a) => a.enabled && a.time === currentHM && a.shifts.includes(alarmShift));
+            if (matched) {
+              lastTriggeredKey = triggerKey;
+              triggerAlarmRinging(matched, todayShift);
+            }
+          }
+        }, 1000);
+      }
+
+      // Event Listeners
+      $('teamSelectorGroup').addEventListener('click', (e) => {
+        const btn = e.target.closest('.team-btn');
+        if (!btn) return;
+        state.myTeam = Number(btn.dataset.team);
+        saveState();
+        renderAll();
+        showToast(`${TEAM_NAMES[state.myTeam]} 근무표로 전환되었습니다.`);
+      });
+
+      $('calendarGrid').addEventListener('click', (e) => {
+        const btn = e.target.closest('.cal-day-btn');
+        if (!btn) return;
+        selectedDateStr = btn.dataset.date;
+        renderCalendar();
+        renderSelectedDatePanel();
+      });
+
+      $('prevMonthBtn').addEventListener('click', () => {
+        viewMonth -= 1;
+        if (viewMonth < 0) { viewMonth = 11; viewYear -= 1; }
+        renderCalendar();
+      });
+
+      $('nextMonthBtn').addEventListener('click', () => {
+        viewMonth += 1;
+        if (viewMonth > 11) { viewMonth = 0; viewYear += 1; }
+        renderCalendar();
+      });
+
+      $('goTodayBtn').addEventListener('click', () => {
+        const today = new Date();
+        viewYear = today.getFullYear();
+        viewMonth = today.getMonth();
+        selectedDateStr = formatDateISO(today);
+        renderCalendar();
+        renderSelectedDatePanel();
+      });
+
+      $('quickOverrideGroup').addEventListener('click', (e) => {
+        const btn = e.target.closest('.override-btn');
+        if (!btn) return;
+        const val = btn.dataset.override;
+        if (val) state.overrides[selectedDateStr] = val;
+        else delete state.overrides[selectedDateStr];
+        saveState();
+        renderAll();
+        const labelMap = { '': '기본 패턴', '특주': '특근(주간)', '특야': '특근(야간)', '휴': '휴무' };
+        showToast(`${selectedDateStr} 근무가 '${labelMap[val]}'(으)로 변경되었습니다.`);
+      });
+
+      $('saveDayDetailBtn').addEventListener('click', () => {
+        const memoVal = $('dayMemoInput').value.trim();
+        if (memoVal) state.memos[selectedDateStr] = memoVal;
+        else delete state.memos[selectedDateStr];
+
+        saveState();
+        renderAll();
+        showToast('메모가 저장되었습니다.');
+      });
+
+      // Audio & Test
+      $('audioEnableBtn').addEventListener('click', () => {
+        ensureAudioContext();
+        playTonePattern('chime');
+        showToast('알람 소리가 활성화되었습니다.');
+      });
+
+      $('testAlarmBtn').addEventListener('click', () => {
+        const now = new Date();
+        const todayShift = getShiftForTeamOnDate(state.myTeam, now);
+        triggerAlarmRinging({ name: '테스트 근무 알람', time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`, tone: 'melody' }, todayShift);
+      });
+
+      $('requestNotifBtn').addEventListener('click', () => {
+        try {
+          if (!('Notification' in window)) {
+            showToast('이 브라우저는 데스크톱 알림을 지원하지 않습니다.');
+            return;
+          }
+          Notification.requestPermission().then((perm) => {
+            if (perm === 'granted') showToast('브라우저 알림이 허용되었습니다.');
+            else showToast('브라우저 알림 권한이 거부되었습니다.');
+          }).catch(() => {
+            showToast('알림 권한 요청 중 문제가 발생했습니다.');
+          });
+        } catch (e) {
+          showToast('현재 환경에서는 브라우저 알림을 사용할 수 없습니다.');
+        }
+      });
+
+      $('dismissAlarmBtn').addEventListener('click', () => {
+        dismissAlarm();
+      });
+
+      $('snoozeAlarmBtn').addEventListener('click', () => {
+        const title = $('ringingTitle').textContent;
+        const badgeText = $('ringingShiftBadge').textContent;
+        dismissAlarm();
+        clearTimeout(snoozeTimeoutId);
+        snoozeTimeoutId = setTimeout(() => {
+          const now = new Date();
+          const curTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          const todayShift = getShiftForTeamOnDate(state.myTeam, now);
+          triggerAlarmRinging({ name: `[다시알림] ${title}`, time: curTime, tone: 'urgent' }, todayShift);
+        }, 5 * 60 * 1000);
+        showToast(`${badgeText} — 5분 뒤에 다시 울립니다.`);
+      });
+
+      // Alarm List Actions
+      $('alarmListContainer').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action]');
+        if (!btn) return;
+        const id = btn.dataset.id;
+        const action = btn.dataset.action;
+
+        if (action === 'toggle-alarm') {
+          const target = state.alarms.find((a) => a.id === id);
+          if (target) {
+            target.enabled = !target.enabled;
+            saveState();
+            renderAlarmList();
+            renderHeroToday(new Date());
+          }
+        } else if (action === 'delete-alarm') {
+          state.alarms = state.alarms.filter((a) => a.id !== id);
+          saveState();
+          renderAlarmList();
+          renderHeroToday(new Date());
+          showToast('알람이 삭제되었습니다.');
+        } else if (action === 'edit-alarm') {
+          const target = state.alarms.find((a) => a.id === id);
+          if (!target) return;
+          $('alarmFormTitle').textContent = '알람 수정';
+          $('editAlarmId').value = target.id;
+          $('alarmNameInput').value = target.name;
+          $('alarmTimeInput').value = target.time;
+          $('alarmToneSelect').value = target.tone || 'chime';
+          document.querySelectorAll('.alarm-shift-cb').forEach((cb) => {
+            cb.checked = target.shifts.includes(cb.value);
+          });
+          $('alarmFormModal').classList.remove('hidden');
+          $('alarmFormModal').classList.add('flex');
+        }
+      });
+
+      // Add/Edit Alarm Modal
+      function closeAlarmModal() {
+        $('alarmFormModal').classList.add('hidden');
+        $('alarmFormModal').classList.remove('flex');
+      }
+
+      $('openAddAlarmBtn').addEventListener('click', () => {
+        $('alarmFormTitle').textContent = '새 알람 추가';
+        $('editAlarmId').value = '';
+        $('alarmNameInput').value = '';
+        $('alarmTimeInput').value = '06:30';
+        $('alarmToneSelect').value = 'chime';
+        document.querySelectorAll('.alarm-shift-cb').forEach((cb) => {
+          cb.checked = cb.value === '주';
+        });
+        $('alarmFormModal').classList.remove('hidden');
+        $('alarmFormModal').classList.add('flex');
+      });
+
+      $('closeAlarmFormBtn').addEventListener('click', closeAlarmModal);
+      $('cancelAlarmFormBtn').addEventListener('click', closeAlarmModal);
+
+      $('previewToneBtn').addEventListener('click', () => {
+        playTonePattern($('alarmToneSelect').value);
+      });
+
+      $('saveAlarmBtn').addEventListener('click', () => {
+        const name = $('alarmNameInput').value.trim() || '근무 알람';
+        const time = $('alarmTimeInput').value || '06:30';
+        const tone = $('alarmToneSelect').value;
+        const shifts = Array.from(document.querySelectorAll('.alarm-shift-cb'))
+          .filter((cb) => cb.checked)
+          .map((cb) => cb.value);
+
+        if (shifts.length === 0) {
+          showToast('최소 1개 이상의 근무 조건을 선택하세요.');
+          return;
+        }
+
+        const editId = $('editAlarmId').value;
+        if (editId) {
+          const existing = state.alarms.find((a) => a.id === editId);
+          if (existing) {
+            existing.name = name;
+            existing.time = time;
+            existing.tone = tone;
+            existing.shifts = shifts;
+          }
+        } else {
+          state.alarms.push({
+            id: 'a_' + Date.now(),
+            name,
+            time,
+            tone,
+            shifts,
+            enabled: true
+          });
+        }
+
+        saveState();
+        closeAlarmModal();
+        renderAlarmList();
+        renderHeroToday(new Date());
+        showToast('알람이 저장되었습니다.');
+      });
+
+      // Settings Modal
+      function openSettings() {
+        const presets = ['주주휴휴야야휴휴', '주주야야비비휴휴', '주야비휴', '주주야야비휴'];
+        if (presets.includes(state.pattern)) {
+          $('patternPresetSelect').value = state.pattern;
+          $('customPatternBox').classList.add('hidden');
+        } else {
+          $('patternPresetSelect').value = 'custom';
+          $('customPatternBox').classList.remove('hidden');
+          $('customPatternInput').value = state.pattern;
+        }
+        $('baseDateInput').value = state.baseDate;
+        $('dayShiftStartInput').value = state.dayStart;
+        $('dayShiftEndInput').value = state.dayEnd;
+        $('nightShiftStartInput').value = state.nightStart;
+        $('nightShiftEndInput').value = state.nightEnd;
+
+        $('settingsModal').classList.remove('hidden');
+        $('settingsModal').classList.add('flex');
+      }
+
+      function closeSettings() {
+        $('settingsModal').classList.add('hidden');
+        $('settingsModal').classList.remove('flex');
+      }
+
+      $('openSettingsBtn').addEventListener('click', openSettings);
+      $('closeSettingsBtn').addEventListener('click', closeSettings);
+
+      $('patternPresetSelect').addEventListener('change', (e) => {
+        if (e.target.value === 'custom') {
+          $('customPatternBox').classList.remove('hidden');
+          $('customPatternInput').value = state.pattern;
+        } else {
+          $('customPatternBox').classList.add('hidden');
+        }
+      });
+
+      $('saveSettingsBtn').addEventListener('click', () => {
+        const presetVal = $('patternPresetSelect').value;
+        let nextPattern = presetVal;
+        if (presetVal === 'custom') {
+          const raw = $('customPatternInput').value.replace(/[^주야비휴]/g, '');
+          if (raw.length < 4) {
+            showToast('패턴은 주/야/비/휴 4글자 이상 입력해야 합니다.');
+            return;
+          }
+          nextPattern = raw;
+        }
+
+        state.pattern = nextPattern;
+        state.baseDate = $('baseDateInput').value || DEFAULT_STATE.baseDate;
+        state.dayStart = $('dayShiftStartInput').value || '08:00';
+        state.dayEnd = $('dayShiftEndInput').value || '20:00';
+        state.nightStart = $('nightShiftStartInput').value || '20:00';
+        state.nightEnd = $('nightShiftEndInput').value || '08:00';
+
+        saveState();
+        closeSettings();
+        renderAll();
+        showToast('근무 패턴 설정이 적용되었습니다.');
+      });
+
+      $('resetDefaultBtn').addEventListener('click', () => {
+        state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+        saveState();
+        closeSettings();
+        renderAll();
+        showToast('기본 설정으로 초기화되었습니다.');
+      });
+
+      // Setup PWA Manifest & Apple Touch Icon dynamically (single-file friendly)
+      function setupPWA() {
+        try {
+          const makeIcon = (size) => {
+            const c = document.createElement('canvas');
+            c.width = size;
+            c.height = size;
+            const ctx = c.getContext('2d');
+            if (!ctx) return '';
+            const r = size * 0.22;
+            ctx.fillStyle = '#4f46e5';
+            ctx.beginPath();
+            ctx.moveTo(r, 0);
+            ctx.lineTo(size - r, 0);
+            ctx.quadraticCurveTo(size, 0, size, r);
+            ctx.lineTo(size, size - r);
+            ctx.quadraticCurveTo(size, size, size - r, size);
+            ctx.lineTo(r, size);
+            ctx.quadraticCurveTo(0, size, 0, size - r);
+            ctx.lineTo(0, r);
+            ctx.quadraticCurveTo(0, 0, r, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = size * 0.065;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.arc(size * 0.5, size * 0.53, size * 0.26, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(size * 0.5, size * 0.39);
+            ctx.lineTo(size * 0.5, size * 0.53);
+            ctx.lineTo(size * 0.61, size * 0.60);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(size * 0.25, size * 0.25);
+            ctx.lineTo(size * 0.33, size * 0.19);
+            ctx.moveTo(size * 0.75, size * 0.25);
+            ctx.lineTo(size * 0.67, size * 0.19);
+            ctx.stroke();
+            return c.toDataURL('image/png');
+          };
+
+          const icon192 = makeIcon(192);
+          const icon512 = makeIcon(512);
+          if (icon192) {
+            const appleLink = $('appleTouchIcon');
+            if (appleLink) appleLink.href = icon192;
+          }
+          if (icon192 && icon512) {
+            const manifestObj = {
+              name: '4조2교대 근무표 & 알람',
+              short_name: '4조2교대',
+              start_url: '.',
+              display: 'standalone',
+              background_color: '#f8fafc',
+              theme_color: '#4f46e5',
+              icons: [
+                { src: icon192, sizes: '192x192', type: 'image/png' },
+                { src: icon512, sizes: '512x512', type: 'image/png' }
+              ]
+            };
+            const blob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
+            const manifestLink = $('pwaManifestLink');
+            if (manifestLink) manifestLink.href = URL.createObjectURL(blob);
+          }
+        } catch (e) {
+          // ignore in restricted environments
+        }
+      }
+
+      // Install & Share Modal handlers
+      $('openInstallShareBtn').addEventListener('click', () => {
+        $('installShareModal').classList.remove('hidden');
+        $('installShareModal').classList.add('flex');
+      });
+      $('closeInstallShareBtn').addEventListener('click', () => {
+        $('installShareModal').classList.add('hidden');
+        $('installShareModal').classList.remove('flex');
+      });
+      $('copyShareUrlBtn').addEventListener('click', () => {
+        const url = window.location.href;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(() => {
+            showToast('현재 페이지 주소가 복사되었습니다.');
+          }).catch(() => fallbackCopy(url));
+        } else {
+          fallbackCopy(url);
+        }
+      });
+      function fallbackCopy(text) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          showToast('현재 페이지 주소가 복사되었습니다.');
+        } catch (e) {
+          showToast('주소 복사에 실패했습니다.');
+        }
+      }
+      $('nativeShareBtn').addEventListener('click', () => {
+        if (navigator.share) {
+          navigator.share({
+            title: '4조2교대 근무표 & 알람',
+            text: '주주휴휴야야휴휴 4조2교대 근무표입니다. 본인 조를 선택해 사용하세요!',
+            url: window.location.href
+          }).catch(() => {});
+        } else {
+          showToast('이 브라우저에서는 주소 복사를 이용해 주세요.');
+        }
+      });
+
+      // Initialize
+      setupPWA();
+      renderAll();
+      updateAudioUI();
+      startClockLoop();
+    })();
+  </script>
+</body>
+</html>

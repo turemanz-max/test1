@@ -65,9 +65,13 @@
           <i data-lucide="bell-ring" class="w-4 h-4"></i>
           <span>알람 테스트</span>
         </button>
+        <button id="directInstallBtn" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>앱 설치</span>
+        </button>
         <button id="openInstallShareBtn" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
           <i data-lucide="share-2" class="w-4 h-4"></i>
-          <span class="hidden sm:inline">앱 설치·공유</span>
+          <span class="hidden sm:inline">공유</span>
         </button>
         <button id="openSettingsBtn" type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
           <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
@@ -432,7 +436,10 @@
           </div>
         </div>
         <div class="space-y-2.5">
-          <p class="font-bold text-slate-900">스마트폰 바탕화면에 앱으로 추가</p>
+          <div class="flex items-center justify-between">
+            <p class="font-bold text-slate-900">스마트폰 바탕화면에 앱으로 추가</p>
+            <button id="modalInstallBtn" type="button" class="hidden px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700">지금 바로 설치</button>
+          </div>
           <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
             <p class="font-semibold text-slate-800">아이폰 (Safari)</p>
             <p>하단 <strong>공유(□↑)</strong> 버튼 → <strong>홈 화면에 추가</strong></p>
@@ -1378,6 +1385,41 @@
           // ignore in restricted environments
         }
       }
+
+      // Direct PWA Install Prompt Handler
+      let deferredInstallPrompt = null;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        const modalBtn = $('modalInstallBtn');
+        if (modalBtn) modalBtn.classList.remove('hidden');
+      });
+
+      window.addEventListener('appinstalled', () => {
+        deferredInstallPrompt = null;
+        showToast('앱이 성공적으로 설치되었습니다!');
+      });
+
+      async function triggerAppInstall() {
+        if (deferredInstallPrompt) {
+          deferredInstallPrompt.prompt();
+          try {
+            const { outcome } = await deferredInstallPrompt.userChoice;
+            if (outcome === 'accepted') {
+              deferredInstallPrompt = null;
+              showToast('앱 설치를 시작합니다.');
+            }
+          } catch (e) {}
+        } else {
+          // If in KakaoTalk or iOS Safari or already installed, open guide modal
+          $('installShareModal').classList.remove('hidden');
+          $('installShareModal').classList.add('flex');
+          showToast('브라우저 메뉴에서 홈 화면에 추가를 눌러주세요.');
+        }
+      }
+
+      $('directInstallBtn').addEventListener('click', triggerAppInstall);
+      $('modalInstallBtn').addEventListener('click', triggerAppInstall);
 
       // Install & Share Modal handlers
       $('openInstallShareBtn').addEventListener('click', () => {

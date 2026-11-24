@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shift4x2-v25';
+const CACHE_NAME = 'shift4x2-v26';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {

@@ -7,11 +7,11 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="4조2교대" />
+  <meta name="apple-mobile-web-app-title" content="교대근무표" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%234f46e5'/%3E%3Ccircle cx='32' cy='34' r='16' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M32 25v9l6 4' fill='none' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3Cpath d='M16 15l5-4M48 15l-5-4' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E" />
   <link rel="apple-touch-icon" href="./icon-192.png" />
   <link rel="manifest" href="./manifest.json" />
-  <title>알람 울리는 4조2교대 근무표</title>
+  <title>알람 울리는 교대근무표</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -51,7 +51,7 @@
           <i data-lucide="alarm-clock" class="w-5 h-5"></i>
         </div>
         <div>
-          <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 leading-tight">4조2교대 근무표 &amp; 알람</h1>
+          <h1 id="appHeaderTitle" class="text-base sm:text-lg font-bold tracking-tight text-slate-900 leading-tight">알람 울리는 교대근무표</h1>
           <p class="text-xs text-slate-500">근무 패턴 연동 자동 알람 시계</p>
         </div>
       </div>
@@ -123,10 +123,7 @@
           <div class="flex items-center gap-1.5">
             <span class="text-xs text-slate-300 mr-1">내 근무조:</span>
             <div id="teamSelectorGroup" class="inline-flex rounded-lg bg-white/10 p-0.5">
-              <button type="button" data-team="0" class="team-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors">A조</button>
-              <button type="button" data-team="1" class="team-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors">B조</button>
-              <button type="button" data-team="2" class="team-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors">C조</button>
-              <button type="button" data-team="3" class="team-btn px-2.5 py-1 rounded-md text-xs font-semibold transition-colors">D조</button>
+              <!-- Populated by JS -->
             </div>
           </div>
           <div id="todayAllTeamsSummary" class="flex flex-wrap items-center gap-1.5 text-xs">
@@ -190,6 +187,7 @@
           <!-- Legend -->
           <div class="flex flex-wrap items-center gap-2 text-xs font-medium">
             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800">주간</span>
+            <span id="legendAfternoonBadge" class="hidden items-center gap-1 px-2 py-0.5 rounded-md bg-teal-100 text-teal-800">오후</span>
             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800">야간</span>
             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">휴무</span>
             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-100 text-rose-800">특근</span>
@@ -249,6 +247,7 @@
               <div id="quickOverrideGroup" class="flex flex-wrap gap-1.5">
                 <button type="button" data-override="" class="override-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors">기본</button>
                 <button type="button" data-override="주" class="override-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors">주간</button>
+                <button id="overrideAfternoonBtn" type="button" data-override="오" class="override-btn hidden px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors">오후</button>
                 <button type="button" data-override="야" class="override-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors">야간</button>
                 <button type="button" data-override="휴" class="override-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors">휴무</button>
                 <button type="button" data-override="휴가" class="override-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors">휴가</button>
@@ -292,12 +291,20 @@
   <div id="settingsModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
     <div class="bg-white rounded-2xl max-w-lg w-full shadow-xl border border-slate-200 overflow-hidden">
       <div class="p-4 border-b border-slate-100 flex items-center justify-between">
-        <h3 class="text-base font-bold text-slate-900">4조2교대 근무 패턴 설정</h3>
+        <h3 class="text-base font-bold text-slate-900">교대 형태 및 근무 패턴 설정</h3>
         <button id="closeSettingsBtn" type="button" class="p-1 rounded-lg hover:bg-slate-100 text-slate-500">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
       <div class="p-4 space-y-4 max-h-[75vh] overflow-y-auto text-sm">
+        <div>
+          <span class="block text-xs font-semibold text-slate-700 mb-1.5">교대 형태</span>
+          <div id="shiftModeGroup" class="grid grid-cols-3 gap-2">
+            <button type="button" data-mode="4x2" class="mode-btn py-2 px-2 rounded-xl text-xs font-bold border transition-colors">4조 2교대</button>
+            <button type="button" data-mode="3x3" class="mode-btn py-2 px-2 rounded-xl text-xs font-bold border transition-colors">3조 3교대</button>
+            <button type="button" data-mode="2x2" class="mode-btn py-2 px-2 rounded-xl text-xs font-bold border transition-colors">2조 2교대</button>
+          </div>
+        </div>
         <div>
           <label for="patternPresetSelect" class="block text-xs font-semibold text-slate-700 mb-1">교대 패턴 선택</label>
           <select id="patternPresetSelect" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -314,6 +321,7 @@
           <input id="customPatternInput" type="text" placeholder="예: 주주휴휴야야휴휴" class="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold tracking-wider bg-white" />
           <div class="flex flex-wrap gap-1.5">
             <button type="button" data-pat="주" class="pat-add-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 hover:bg-amber-200">+ 주</button>
+            <button type="button" data-pat="오" class="pat-add-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-100 text-teal-800 border border-teal-200 hover:bg-teal-200">+ 오</button>
             <button type="button" data-pat="야" class="pat-add-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 hover:bg-indigo-200">+ 야</button>
             <button type="button" data-pat="휴" class="pat-add-btn px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 hover:bg-emerald-200">+ 휴</button>
             <button type="button" id="patBackspaceBtn" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white text-slate-700 border border-slate-200 hover:bg-slate-100">← 지우기</button>
@@ -380,6 +388,14 @@
             <label for="nightShiftEndInput" class="block text-xs font-semibold text-slate-700 mb-1">야간 종료 (익일)</label>
             <input id="nightShiftEndInput" type="time" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
           </div>
+          <div id="afternoonStartBox" class="hidden">
+            <label for="afternoonShiftStartInput" class="block text-xs font-semibold text-slate-700 mb-1">오후 시작 (3교대)</label>
+            <input id="afternoonShiftStartInput" type="time" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
+          <div id="afternoonEndBox" class="hidden">
+            <label for="afternoonShiftEndInput" class="block text-xs font-semibold text-slate-700 mb-1">오후 종료 (3교대)</label>
+            <input id="afternoonShiftEndInput" type="time" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          </div>
         </div>
       </div>
       <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
@@ -430,16 +446,20 @@
         </div>
         <div>
           <span class="block text-xs font-semibold text-slate-700 mb-1.5">울릴 근무 조건 (복수 선택 가능)</span>
-          <div class="grid grid-cols-3 gap-2">
-            <label class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-amber-50 text-xs font-semibold">
+          <div class="grid grid-cols-4 gap-2">
+            <label class="flex items-center justify-center gap-1 p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-amber-50 text-xs font-semibold">
               <input type="checkbox" class="alarm-shift-cb accent-amber-500" value="주" checked />
               <span>주간</span>
             </label>
-            <label class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-indigo-50 text-xs font-semibold">
+            <label class="flex items-center justify-center gap-1 p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-teal-50 text-xs font-semibold">
+              <input type="checkbox" class="alarm-shift-cb accent-teal-600" value="오" />
+              <span>오후</span>
+            </label>
+            <label class="flex items-center justify-center gap-1 p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-indigo-50 text-xs font-semibold">
               <input type="checkbox" class="alarm-shift-cb accent-indigo-600" value="야" />
               <span>야간</span>
             </label>
-            <label class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-emerald-50 text-xs font-semibold">
+            <label class="flex items-center justify-center gap-1 p-2 rounded-xl border border-slate-200 cursor-pointer hover:bg-emerald-50 text-xs font-semibold">
               <input type="checkbox" class="alarm-shift-cb accent-emerald-600" value="휴" />
               <span>휴무</span>
             </label>
@@ -529,6 +549,42 @@
     (function () {
       const STORAGE_KEY = 'shift4x2_alarm_app_v4';
       const TEAM_NAMES = ['A조', 'B조', 'C조', 'D조'];
+      const MODE_CONFIGS = {
+        '4x2': {
+          title: '알람 울리는 교대근무표',
+          teamCount: 4,
+          hoursPerShift: 12,
+          defaultPattern: '주주휴휴야야휴휴',
+          presets: [
+            { value: '주주휴휴야야휴휴', label: '주주휴휴야야휴휴 (8일 주기 · 주2·휴2·야2·휴2)' },
+            { value: '주주야야비비휴휴', label: '주주야야비비휴휴 (8일 주기 · 표준 4조2교대)' },
+            { value: '주야비휴', label: '주야비휴 (4일 주기 · 맞교대형)' },
+            { value: '주주야야비휴', label: '주주야야비휴 (6일 주기)' }
+          ]
+        },
+        '3x3': {
+          title: '알람 울리는 교대근무표',
+          teamCount: 3,
+          hoursPerShift: 8,
+          defaultPattern: '주주주오오오야야야휴휴휴',
+          presets: [
+            { value: '주주주오오오야야야휴휴휴', label: '주주주오오오야야야휴휴휴 (12일 주기 · 3일 순환)' },
+            { value: '주주오오야야휴휴휴', label: '주주오오야야휴휴휴 (9일 주기 · 2근 3휴형)' },
+            { value: '주주오오야야', label: '주주오오야야 (6일 주기 · 무휴형)' }
+          ]
+        },
+        '2x2': {
+          title: '알람 울리는 교대근무표',
+          teamCount: 2,
+          hoursPerShift: 12,
+          defaultPattern: '주주야야휴휴',
+          presets: [
+            { value: '주주야야휴휴', label: '주주야야휴휴 (6일 주기 · 주2·야2·휴2)' },
+            { value: '주주야야', label: '주주야야 (4일 주기 · 주2·야2)' },
+            { value: '주야휴휴', label: '주야휴휴 (4일 주기 · 주1·야1·휴2)' }
+          ]
+        }
+      };
 
       // 2026~2027 대한민국 법정공휴일 및 대체공휴일 (우주항공청 월력요항 기준)
       const KR_HOLIDAYS = {
@@ -612,6 +668,13 @@
           cellBg: 'bg-amber-50/70',
           dotClass: 'bg-amber-500'
         },
+        '오': {
+          label: '오후',
+          badgeClass: 'bg-teal-100 text-teal-800 border-teal-200',
+          heroClass: 'bg-teal-500 text-white',
+          cellBg: 'bg-teal-50/70',
+          dotClass: 'bg-teal-500'
+        },
         '야': {
           label: '야간',
           badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-200',
@@ -661,12 +724,15 @@
 
       const DEFAULT_STATE = {
         myTeam: 1, // 0=A조, 1=B조(야간 시작), 2=C조, 3=D조(주간 시작)
+        shiftMode: '4x2',
         pattern: '주주휴휴야야휴휴',
         baseDate: '2026-11-24',
         baseTeam: 3, // 3=D조가 기준일(2026-11-24)에 패턴 첫날(주간 시작)
         customTeamOffsets: null, // null이면 자동 순환, 배열([0..3])이면 조별 개별 일차 적용
         dayStart: '06:30',
         dayEnd: '18:30',
+        afternoonStart: '14:00',
+        afternoonEnd: '22:00',
         nightStart: '18:30',
         nightEnd: '06:30',
         alarms: [
@@ -900,9 +966,13 @@
         if (teamIdx === state.myTeam && state.memos) delete state.memos[dateStr];
       }
 
-      function getAutoOffset(teamIdx, cycleLen, baseTeam) {
-        const step = cycleLen / 4;
-        const stepsFromBase = ((baseTeam - teamIdx) % 4 + 4) % 4;
+      function getTeamCount(mode = state.shiftMode) {
+        return (MODE_CONFIGS[mode] || MODE_CONFIGS['4x2']).teamCount;
+      }
+
+      function getAutoOffset(teamIdx, cycleLen, baseTeam, teamCount = getTeamCount()) {
+        const step = cycleLen / teamCount;
+        const stepsFromBase = ((baseTeam - teamIdx) % teamCount + teamCount) % teamCount;
         return Math.round(step * stepsFromBase);
       }
 
@@ -916,12 +986,13 @@
         const base = parseDateISO(state.baseDate);
         const daysPassed = diffDays(dateObj, base);
 
+        const teamCount = getTeamCount();
         let offset = 0;
-        if (Array.isArray(state.customTeamOffsets) && state.customTeamOffsets.length === 4) {
+        if (Array.isArray(state.customTeamOffsets) && state.customTeamOffsets.length >= teamCount) {
           offset = Number(state.customTeamOffsets[teamIdx]) || 0;
         } else {
-          const baseTeam = typeof state.baseTeam === 'number' ? state.baseTeam : 3;
-          offset = getAutoOffset(teamIdx, cycleLen, baseTeam);
+          const baseTeam = (typeof state.baseTeam === 'number' ? state.baseTeam : 0) % teamCount;
+          offset = getAutoOffset(teamIdx, cycleLen, baseTeam, teamCount);
         }
 
         const idx = (((daysPassed + offset) % cycleLen) + cycleLen) % cycleLen;
@@ -936,6 +1007,7 @@
 
       function getShiftTimeLabel(shiftChar) {
         if (shiftChar === '주' || shiftChar === '특주') return `${state.dayStart}~${state.dayEnd}`;
+        if (shiftChar === '오') return `${state.afternoonStart || '14:00'}~${state.afternoonEnd || '22:00'}`;
         if (shiftChar === '야' || shiftChar === '특야') return `${state.nightStart}~${state.nightEnd}`;
         if (shiftChar === '비') return '야간 퇴근 후 휴식';
         if (shiftChar === '휴가') return '종일 휴가';
@@ -1106,15 +1178,22 @@
 
       // Render Functions
       function renderTeamButtons() {
+        const cfg = MODE_CONFIGS[state.shiftMode] || MODE_CONFIGS['4x2'];
+        if (state.myTeam >= cfg.teamCount) state.myTeam = 0;
+        if (editingTeamIdx >= cfg.teamCount) editingTeamIdx = state.myTeam;
+
+        $('appHeaderTitle').textContent = cfg.title;
         $('myTeamBadgeLabel').textContent = TEAM_NAMES[state.myTeam];
-        document.querySelectorAll('.team-btn').forEach((btn) => {
-          const t = Number(btn.dataset.team);
-          if (t === state.myTeam) {
-            btn.className = 'team-btn px-2.5 py-1 rounded-md text-xs font-bold bg-white text-slate-900 shadow-sm transition-colors';
-          } else {
-            btn.className = 'team-btn px-2.5 py-1 rounded-md text-xs font-semibold text-slate-200 hover:text-white transition-colors';
-          }
-        });
+
+        const is3x3 = state.shiftMode === '3x3';
+        $('legendAfternoonBadge').classList.toggle('hidden', !is3x3);
+        $('legendAfternoonBadge').classList.toggle('inline-flex', is3x3);
+        $('overrideAfternoonBtn').classList.toggle('hidden', !is3x3);
+
+        $('teamSelectorGroup').innerHTML = Array.from({ length: cfg.teamCount }, (_, t) => {
+          const active = t === state.myTeam;
+          return `<button type="button" data-team="${t}" class="team-btn px-2.5 py-1 rounded-md text-xs ${active ? 'font-bold bg-white text-slate-900 shadow-sm' : 'font-semibold text-slate-200 hover:text-white'} transition-colors">${TEAM_NAMES[t]}</button>`;
+        }).join('');
       }
 
       function renderHeroToday(now) {
@@ -1139,6 +1218,7 @@
 
         const widgetCircleStyle = (sh) => {
           if (sh === '주') return 'bg-amber-400 text-slate-950';
+          if (sh === '오') return 'bg-teal-500 text-white';
           if (sh === '야') return 'bg-indigo-500 text-white';
           if (sh === '휴가') return 'bg-yellow-300 text-rose-600';
           if (sh === '특주') return 'bg-rose-500 text-white';
@@ -1162,9 +1242,10 @@
         $('widgetTomorrowBadge').textContent = widgetShortText(tmrShift);
         $('widgetTomorrowBadge').className = `w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold shadow ${widgetCircleStyle(tmrShift)}`;
 
-        // All 4 teams today
+        // Active teams today
+        const teamCount = getTeamCount();
         const summaryEl = $('todayAllTeamsSummary');
-        summaryEl.innerHTML = [0, 1, 2, 3].map((t) => {
+        summaryEl.innerHTML = Array.from({ length: teamCount }, (_, t) => {
           const s = getShiftForTeamOnDate(t, now);
           const isMe = t === state.myTeam;
           return `<span class="px-2 py-0.5 rounded-md ${isMe ? 'bg-white text-slate-900 font-bold' : 'bg-white/10 text-slate-200'}">${TEAM_NAMES[t]}:${s}</span>`;
@@ -1206,7 +1287,7 @@
           cells.push(`<div class="min-h-[76px] sm:min-h-[86px] p-1.5 bg-slate-50/50 text-slate-300 text-xs">${dNum}</div>`);
         }
 
-        const counts = { '주': 0, '야': 0, '비': 0, '휴': 0, '특': 0, '휴가': 0 };
+        const counts = { '주': 0, '오': 0, '야': 0, '비': 0, '휴': 0, '특': 0, '휴가': 0 };
 
         for (let day = 1; day <= daysInMonth; day++) {
           const dObj = new Date(viewYear, viewMonth, day);
@@ -1259,16 +1340,18 @@
         grid.innerHTML = cells.join('');
 
         // Monthly Summary
-        const totalHours = (counts['주'] + counts['야'] + counts['특']) * 12;
+        const hrsPerShift = (MODE_CONFIGS[state.shiftMode] || MODE_CONFIGS['4x2']).hoursPerShift;
+        const totalHours = (counts['주'] + counts['오'] + counts['야'] + counts['특']) * hrsPerShift;
         $('monthlySummaryBar').innerHTML = `
           <div class="flex flex-wrap items-center gap-3">
             <span>주간 <strong class="text-amber-700">${counts['주']}일</strong></span>
+            ${(state.shiftMode === '3x3' || counts['오'] > 0) ? `<span>오후 <strong class="text-teal-700">${counts['오']}일</strong></span>` : ''}
             <span>야간 <strong class="text-indigo-700">${counts['야']}일</strong></span>
             <span>휴무 <strong class="text-emerald-700">${counts['휴']}일</strong></span>
             ${counts['특'] > 0 ? `<span>특근 <strong class="text-rose-700">${counts['특']}일</strong></span>` : ''}
             ${counts['휴가'] > 0 ? `<span>휴가 <strong class="text-rose-600">${counts['휴가']}일</strong></span>` : ''}
           </div>
-          <div>예상 근무: <strong class="text-slate-900">${totalHours}시간</strong> (12시간 교대)</div>
+          <div>예상 근무: <strong class="text-slate-900">${totalHours}시간</strong> (${hrsPerShift}시간 교대)</div>
         `;
       }
 
@@ -1285,8 +1368,10 @@
         badge.className = `px-2.5 py-1 rounded-lg text-xs font-bold border ${myMeta.badgeClass}`;
         badge.textContent = `${myMeta.label} (${getShiftTimeLabel(myShift)})`;
 
+        const teamCount = getTeamCount();
         const teamsGrid = $('selectedDateTeamsGrid');
-        teamsGrid.innerHTML = [0, 1, 2, 3].map((t) => {
+        teamsGrid.className = `grid gap-2 ${teamCount === 2 ? 'grid-cols-2' : teamCount === 3 ? 'grid-cols-3' : 'grid-cols-4'}`;
+        teamsGrid.innerHTML = Array.from({ length: teamCount }, (_, t) => {
           const s = getShiftForTeamOnDate(t, dObj);
           const m = SHIFT_META[s];
           const isMe = t === state.myTeam;
@@ -1304,10 +1389,11 @@
         const currentOverride = getTeamOverride(editingTeamIdx, selectedDateStr);
         document.querySelectorAll('.override-btn').forEach((btn) => {
           const val = btn.dataset.override;
+          const hideClass = (val === '오' && state.shiftMode !== '3x3') ? ' hidden' : '';
           if (val === currentOverride) {
-            btn.className = 'override-btn px-2.5 py-1.5 rounded-lg text-xs font-bold border border-indigo-600 bg-indigo-600 text-white shadow-sm transition-colors';
+            btn.className = 'override-btn px-2.5 py-1.5 rounded-lg text-xs font-bold border border-indigo-600 bg-indigo-600 text-white shadow-sm transition-colors' + hideClass;
           } else {
-            btn.className = 'override-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors';
+            btn.className = 'override-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors' + hideClass;
           }
         });
         $('dayMemoInput').value = getTeamMemo(editingTeamIdx, selectedDateStr);
@@ -1450,7 +1536,7 @@
         setTeamOverride(editingTeamIdx, selectedDateStr, val);
         saveState();
         renderAll();
-        const labelMap = { '': '기본 패턴', '주': '주간', '야': '야간', '휴': '휴무', '휴가': '휴가', '특주': '특근(주간)', '특야': '특근(야간)' };
+        const labelMap = { '': '기본 패턴', '주': '주간', '오': '오후', '야': '야간', '휴': '휴무', '휴가': '휴가', '특주': '특근(주간)', '특야': '특근(야간)' };
         showToast(`${selectedDateStr} ${TEAM_NAMES[editingTeamIdx]} 근무가 '${labelMap[val]}'(으)로 변경되었습니다.`);
       });
 
@@ -1690,25 +1776,70 @@
       });
 
       // Settings Modal
+      let draftShiftMode = state.shiftMode || '4x2';
+
       function getDraftPattern() {
         const presetVal = $('patternPresetSelect').value;
         if (presetVal === 'custom') {
-          const raw = $('customPatternInput').value.replace(/[^주야비휴]/g, '');
+          const raw = $('customPatternInput').value.replace(/[^주오야비휴]/g, '');
           return raw.length >= 1 ? raw : state.pattern;
         }
         return presetVal;
       }
 
+      function renderSettingsModeUI(mode, activePattern) {
+        draftShiftMode = mode;
+        const cfg = MODE_CONFIGS[mode] || MODE_CONFIGS['4x2'];
+        document.querySelectorAll('.mode-btn').forEach((btn) => {
+          const active = btn.dataset.mode === mode;
+          btn.className = `mode-btn py-2 px-2 rounded-xl text-xs font-bold border transition-colors ${active ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`;
+        });
+
+        // Presets for selected mode
+        const patToUse = activePattern || cfg.defaultPattern;
+        const presetSel = $('patternPresetSelect');
+        presetSel.innerHTML = cfg.presets.map((p) => `<option value="${p.value}">${p.label}</option>`).join('') +
+          '<option value="custom">사용자 지정 패턴</option>';
+        if (cfg.presets.some((p) => p.value === patToUse)) {
+          presetSel.value = patToUse;
+          $('customPatternBox').classList.add('hidden');
+        } else {
+          presetSel.value = 'custom';
+          $('customPatternBox').classList.remove('hidden');
+          $('customPatternInput').value = patToUse;
+        }
+
+        // Base team options
+        const prevBase = Number($('baseTeamSelect').value || state.baseTeam || 0) % cfg.teamCount;
+        $('baseTeamSelect').innerHTML = Array.from({ length: cfg.teamCount }, (_, t) => `<option value="${t}">${TEAM_NAMES[t]}</option>`).join('');
+        $('baseTeamSelect').value = String(prevBase);
+
+        // Team offset boxes visibility
+        $('customTeamOffsetsGrid').className = `grid gap-2 ${cfg.teamCount === 2 ? 'grid-cols-2' : cfg.teamCount === 3 ? 'grid-cols-3' : 'grid-cols-4'}`;
+        for (let t = 0; t < 4; t++) {
+          const sel = $('teamOffset' + t);
+          if (sel && sel.parentElement) {
+            sel.parentElement.classList.toggle('hidden', t >= cfg.teamCount);
+          }
+        }
+
+        // Afternoon time inputs only in 3x3
+        const is3x3 = mode === '3x3';
+        $('afternoonStartBox').classList.toggle('hidden', !is3x3);
+        $('afternoonEndBox').classList.toggle('hidden', !is3x3);
+      }
+
       function populateTeamOffsetSelects(useAuto = false) {
+        const cfg = MODE_CONFIGS[draftShiftMode] || MODE_CONFIGS['4x2'];
         const pat = getDraftPattern();
         const patArr = Array.from(pat);
         const len = patArr.length || 8;
-        const baseTeam = Number($('baseTeamSelect').value);
-        for (let t = 0; t < 4; t++) {
+        const baseTeam = Number($('baseTeamSelect').value) % cfg.teamCount;
+        for (let t = 0; t < cfg.teamCount; t++) {
           const sel = $('teamOffset' + t);
           if (!sel) continue;
-          const autoVal = getAutoOffset(t, len, baseTeam);
-          const curVal = (!useAuto && Array.isArray(state.customTeamOffsets) && state.customTeamOffsets.length === 4)
+          const autoVal = getAutoOffset(t, len, baseTeam, cfg.teamCount);
+          const curVal = (!useAuto && Array.isArray(state.customTeamOffsets) && state.customTeamOffsets.length >= cfg.teamCount)
             ? (Number(state.customTeamOffsets[t]) % len)
             : autoVal;
           sel.innerHTML = patArr.map((ch, idx) => `<option value="${idx}">${idx + 1}일(${ch})</option>`).join('');
@@ -1717,20 +1848,16 @@
       }
 
       function openSettings() {
-        const presets = ['주주휴휴야야휴휴', '주주야야비비휴휴', '주야비휴', '주주야야비휴'];
-        if (presets.includes(state.pattern)) {
-          $('patternPresetSelect').value = state.pattern;
-          $('customPatternBox').classList.add('hidden');
-        } else {
-          $('patternPresetSelect').value = 'custom';
-          $('customPatternBox').classList.remove('hidden');
-          $('customPatternInput').value = state.pattern;
-        }
+        const mode = state.shiftMode || '4x2';
+        renderSettingsModeUI(mode, state.pattern);
         $('baseDateInput').value = state.baseDate;
-        $('baseTeamSelect').value = String(typeof state.baseTeam === 'number' ? state.baseTeam : 3);
+        const cfg = MODE_CONFIGS[mode] || MODE_CONFIGS['4x2'];
+        $('baseTeamSelect').value = String((typeof state.baseTeam === 'number' ? state.baseTeam : 3) % cfg.teamCount);
         populateTeamOffsetSelects(false);
         $('dayShiftStartInput').value = state.dayStart;
         $('dayShiftEndInput').value = state.dayEnd;
+        $('afternoonShiftStartInput').value = state.afternoonStart || '14:00';
+        $('afternoonShiftEndInput').value = state.afternoonEnd || '22:00';
         $('nightShiftStartInput').value = state.nightStart;
         $('nightShiftEndInput').value = state.nightEnd;
 
@@ -1745,6 +1872,28 @@
 
       $('openSettingsBtn').addEventListener('click', openSettings);
       $('closeSettingsBtn').addEventListener('click', closeSettings);
+
+      $('shiftModeGroup').addEventListener('click', (e) => {
+        const btn = e.target.closest('.mode-btn');
+        if (!btn) return;
+        const nextMode = btn.dataset.mode;
+        const cfg = MODE_CONFIGS[nextMode];
+        renderSettingsModeUI(nextMode, cfg.defaultPattern);
+        if (nextMode === '3x3') {
+          $('dayShiftStartInput').value = '06:00';
+          $('dayShiftEndInput').value = '14:00';
+          $('afternoonShiftStartInput').value = '14:00';
+          $('afternoonShiftEndInput').value = '22:00';
+          $('nightShiftStartInput').value = '22:00';
+          $('nightShiftEndInput').value = '06:00';
+        } else {
+          $('dayShiftStartInput').value = '06:30';
+          $('dayShiftEndInput').value = '18:30';
+          $('nightShiftStartInput').value = '18:30';
+          $('nightShiftEndInput').value = '06:30';
+        }
+        populateTeamOffsetSelects(true);
+      });
 
       $('patternPresetSelect').addEventListener('change', (e) => {
         if (e.target.value === 'custom') {
@@ -1782,25 +1931,32 @@
         const presetVal = $('patternPresetSelect').value;
         let nextPattern = presetVal;
         if (presetVal === 'custom') {
-          const raw = $('customPatternInput').value.replace(/[^주야비휴]/g, '');
-          if (raw.length < 4) {
-            showToast('패턴은 주/야/비/휴 4글자 이상 입력해야 합니다.');
+          const raw = $('customPatternInput').value.replace(/[^주오야비휴]/g, '');
+          if (raw.length < 2) {
+            showToast('패턴은 최소 2글자 이상 입력해야 합니다.');
             return;
           }
           nextPattern = raw;
         }
 
+        state.shiftMode = draftShiftMode;
+        const cfg = MODE_CONFIGS[state.shiftMode] || MODE_CONFIGS['4x2'];
+        if (state.myTeam >= cfg.teamCount) state.myTeam = 0;
+        editingTeamIdx = state.myTeam;
+
         state.pattern = nextPattern;
         state.baseDate = $('baseDateInput').value || DEFAULT_STATE.baseDate;
-        state.baseTeam = Number($('baseTeamSelect').value);
-        const offsets = [0, 1, 2, 3].map((t) => Number($('teamOffset' + t).value) || 0);
-        const autoOffsets = [0, 1, 2, 3].map((t) => getAutoOffset(t, Array.from(nextPattern).length, state.baseTeam));
+        state.baseTeam = Number($('baseTeamSelect').value) % cfg.teamCount;
+        const offsets = Array.from({ length: cfg.teamCount }, (_, t) => Number($('teamOffset' + t).value) || 0);
+        const autoOffsets = Array.from({ length: cfg.teamCount }, (_, t) => getAutoOffset(t, Array.from(nextPattern).length, state.baseTeam, cfg.teamCount));
         const isAuto = offsets.every((v, i) => v === autoOffsets[i]);
         state.customTeamOffsets = isAuto ? null : offsets;
-        state.dayStart = $('dayShiftStartInput').value || '08:00';
-        state.dayEnd = $('dayShiftEndInput').value || '20:00';
-        state.nightStart = $('nightShiftStartInput').value || '20:00';
-        state.nightEnd = $('nightShiftEndInput').value || '08:00';
+        state.dayStart = $('dayShiftStartInput').value || '06:30';
+        state.dayEnd = $('dayShiftEndInput').value || '18:30';
+        state.afternoonStart = $('afternoonShiftStartInput').value || '14:00';
+        state.afternoonEnd = $('afternoonShiftEndInput').value || '22:00';
+        state.nightStart = $('nightShiftStartInput').value || '18:30';
+        state.nightEnd = $('nightShiftEndInput').value || '06:30';
 
         saveState();
         closeSettings();
@@ -1960,8 +2116,8 @@
       $('nativeShareBtn').addEventListener('click', () => {
         if (navigator.share) {
           navigator.share({
-            title: '4조2교대 근무표 & 알람',
-            text: '주주휴휴야야휴휴 4조2교대 근무표입니다. 본인 조를 선택해 사용하세요!',
+            title: '알람 울리는 교대근무표',
+            text: '알람 울리는 교대근무표입니다. 교대 형태와 본인 조를 선택해 사용하세요!',
             url: window.location.href
           }).catch(() => {});
         } else {

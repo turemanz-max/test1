@@ -335,10 +335,16 @@
               </h3>
               <p class="text-xs text-slate-500">해당 근무일(주/야/휴)에만 자동으로 울립니다.</p>
             </div>
-            <button id="openAddAlarmBtn" type="button" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors">
-              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-              알람 추가
-            </button>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button id="exportIcsBtn" type="button" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors">
+                <i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i>
+                <span>캘린더 내보내기</span>
+              </button>
+              <button id="openAddAlarmBtn" type="button" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                알람 추가
+              </button>
+            </div>
           </div>
 
           <div id="alarmListContainer" class="divide-y divide-slate-100 max-h-[380px] overflow-y-auto">
@@ -840,7 +846,8 @@
         memos: {},     // legacy { 'YYYY-MM-DD': string }
         teamOverrides: { 0: {}, 1: {}, 2: {}, 3: {} },
         teamMemos: { 0: {}, 1: {}, 2: {}, 3: {} },
-        monthlyMemos: {}
+        monthlyMemos: {},
+        soundMuted: false
       };
 
       let state = loadState();
@@ -852,7 +859,7 @@
 
       // Audio state
       let audioCtx = null;
-      let audioEnabled = false;
+      let audioEnabled = !state.soundMuted;
       let ringIntervalId = null;
       let activeAudioEl = null;
       let activeAudioUrl = null;
@@ -1640,38 +1647,45 @@
         }
       }
 
-      // Tick loop every second for live clock + alarm trigger check
-      function startClockLoop() {
-        setInterval(() => {
-          const now = new Date();
-          renderHeroToday(now);
+      // Tick loop + visibilitychange check (prevents skipping :00 on mobile throttling)
+      function checkAndTriggerAlarms() {
+        const now = new Date();
+        renderHeroToday(now);
 
-          const hh = String(now.getHours()).padStart(2, '0');
-          const mm = String(now.getMinutes()).padStart(2, '0');
-          const currentHM = `${hh}:${mm}`;
-          const currentDateStr = formatDateISO(now);
-          const triggerKey = `${currentDateStr}_${currentHM}`;
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        const currentHM = `${hh}:${mm}`;
+        const currentDateStr = formatDateISO(now);
+        const triggerKey = `${currentDateStr}_${currentHM}`;
 
-          if (now.getSeconds() === 0 && lastTriggeredKey !== triggerKey) {
-            const todayShift = getShiftForTeamOnDate(state.myTeam, now);
-            const matched = state.alarms.find((a) => a.enabled && a.time === currentHM && doesAlarmMatchDate(a, now));
-            if (matched) {
-              lastTriggeredKey = triggerKey;
-              const isPreWork = matched.shifts.includes('전날') && isDayOffShift(todayShift);
-              if (isPreWork) {
-                const tmr = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-                const tmrShift = getShiftForTeamOnDate(state.myTeam, tmr);
-                const tmrMeta = SHIFT_META[tmrShift] || SHIFT_META['주'];
-                triggerAlarmRinging({
-                  ...matched,
-                  name: `내일은 ${tmrMeta.label} (${getShiftTimeLabel(tmrShift)}) 출근!`
-                }, '전날');
-              } else {
-                triggerAlarmRinging(matched, todayShift);
-              }
+        if (lastTriggeredKey !== triggerKey) {
+          const todayShift = getShiftForTeamOnDate(state.myTeam, now);
+          const matched = state.alarms.find((a) => a.enabled && a.time === currentHM && doesAlarmMatchDate(a, now));
+          if (matched) {
+            lastTriggeredKey = triggerKey;
+            const isPreWork = matched.shifts.includes('전날') && isDayOffShift(todayShift);
+            if (isPreWork) {
+              const tmr = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+              const tmrShift = getShiftForTeamOnDate(state.myTeam, tmr);
+              const tmrMeta = SHIFT_META[tmrShift] || SHIFT_META['주'];
+              triggerAlarmRinging({
+                ...matched,
+                name: `내일은 ${tmrMeta.label} (${getShiftTimeLabel(tmrShift)}) 출근!`
+              }, '전날');
+            } else {
+              triggerAlarmRinging(matched, todayShift);
             }
           }
-        }, 1000);
+        }
+      }
+
+      function startClockLoop() {
+        setInterval(checkAndTriggerAlarms, 500);
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            checkAndTriggerAlarms();
+          }
+        });
       }
 
       // Event Listeners
@@ -1780,14 +1794,34 @@
         showToast(`${TEAM_NAMES[editingTeamIdx]} 메모가 저장되었습니다.`);
       });
 
+      // Auto-unlock Web Audio on any first user tap unless explicitly muted
+      function unlockAudioSilently() {
+        if (state.soundMuted) return;
+        try {
+          if (!audioCtx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) audioCtx = new AudioCtx();
+          }
+          if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+          }
+          audioEnabled = true;
+        } catch (e) {}
+      }
+      document.addEventListener('pointerdown', unlockAudioSilently, { passive: true });
+
       // Audio & Test (True ON/OFF toggle)
       $('audioEnableBtn').addEventListener('click', () => {
         if (audioEnabled) {
           audioEnabled = false;
+          state.soundMuted = true;
+          saveState();
           stopRingingOnly();
           updateAudioUI();
           showToast('알람 소리가 꺼졌습니다.');
         } else {
+          state.soundMuted = false;
+          saveState();
           ensureAudioContext();
           audioEnabled = true;
           updateAudioUI();
@@ -1973,6 +2007,79 @@
         $('customAudioFileName').textContent = `선택됨: ${file.name}`;
         showToast(`"${file.name}" 음악이 선택되었습니다.`);
       });
+
+      function exportAlarmsToICS() {
+        const enabledAlarms = state.alarms.filter((a) => a.enabled && a.shifts && a.shifts.length > 0);
+        if (enabledAlarms.length === 0) {
+          showToast('활성화된 알람이 없습니다. 먼저 알람을 켜주세요.');
+          return;
+        }
+
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const fmtICS = (d) => `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}T${pad2(d.getHours())}${pad2(d.getMinutes())}00`;
+        const nowStamp = fmtICS(new Date());
+        const lines = [
+          'BEGIN:VCALENDAR',
+          'VERSION:2.0',
+          'PRODID:-//ShiftScheduleAlarm//KO',
+          'CALSCALE:GREGORIAN',
+          'METHOD:PUBLISH'
+        ];
+
+        const baseToday = new Date();
+        let eventCount = 0;
+        for (let dayOffset = 0; dayOffset < 60; dayOffset++) {
+          const dObj = new Date(baseToday.getFullYear(), baseToday.getMonth(), baseToday.getDate() + dayOffset);
+          const shiftChar = getShiftForTeamOnDate(state.myTeam, dObj);
+
+          for (const alarm of enabledAlarms) {
+            if (!doesAlarmMatchDate(alarm, dObj)) continue;
+            const [hh, mm] = alarm.time.split(':').map(Number);
+            const startDt = new Date(dObj.getFullYear(), dObj.getMonth(), dObj.getDate(), hh, mm, 0);
+            const endDt = new Date(startDt.getTime() + 15 * 60000);
+
+            let title = alarm.name;
+            if (alarm.shifts.includes('전날') && isDayOffShift(shiftChar)) {
+              const tmr = new Date(dObj.getFullYear(), dObj.getMonth(), dObj.getDate() + 1);
+              const tmrShift = getShiftForTeamOnDate(state.myTeam, tmr);
+              const tmrMeta = SHIFT_META[tmrShift] || SHIFT_META['주'];
+              title = `내일은 ${tmrMeta.label} (${getShiftTimeLabel(tmrShift)}) 출근!`;
+            }
+
+            const uid = `shift-${state.myTeam}-${alarm.id}-${dObj.getFullYear()}${pad2(dObj.getMonth() + 1)}${pad2(dObj.getDate())}@shiftapp`;
+            lines.push(
+              'BEGIN:VEVENT',
+              `UID:${uid}`,
+              `DTSTAMP:${nowStamp}`,
+              `DTSTART:${fmtICS(startDt)}`,
+              `DTEND:${fmtICS(endDt)}`,
+              `SUMMARY:[${TEAM_NAMES[state.myTeam]}] ${title}`,
+              `DESCRIPTION:근무: ${(SHIFT_META[shiftChar] && SHIFT_META[shiftChar].label) || shiftChar}`,
+              'BEGIN:VALARM',
+              'TRIGGER:-PT0M',
+              'ACTION:DISPLAY',
+              `DESCRIPTION:${title}`,
+              'END:VALARM',
+              'END:VEVENT'
+            );
+            eventCount++;
+          }
+        }
+
+        lines.push('END:VCALENDAR');
+        const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `교대근무_알람_${TEAM_NAMES[state.myTeam]}_60일.ics`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast(`${eventCount}개의 알람이 .ics 파일로 저장되었습니다. 파일을 열어 캘린더에 추가하세요!`);
+      }
+
+      $('exportIcsBtn').addEventListener('click', exportAlarmsToICS);
 
       $('openAddAlarmBtn').addEventListener('click', () => {
         $('alarmFormTitle').textContent = '새 알람 추가';
